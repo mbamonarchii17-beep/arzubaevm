@@ -1,384 +1,323 @@
-import os
+import os, json
 import httpx
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
+from dotenv import load_dotenv
 
-app = FastAPI(title="MoodTune AI Hub — Yandex GPT Edition")
+load_dotenv()
 
-# CORS sozlamalari
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
-# ── SIZNING DOIMIY API KALITINGIZ ─────────────────────────────────────────────
-YANDEX_API_KEY = "AQ.Ab8RN6LuVboCgn9CJweuM9B5eLjtt4Fifw_VPMFCIzd0ZMuxHw"
-# Yandex folder ID (Yandex GPT ishlashi uchun kerak bo'ladi, agar bo'lmasa tekinga umumiy model ishlatiladi)
-FOLDER_ID = "b1gxxxxxxxxxxxxxxxxx" 
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 
-# ── STATIK JANRLAR VA QO'SHIQLAR (index.html'dan olindi) ─────────────────────
+# ── DATASET ───────────────────────────────────────────────────────────────────
 GENRES = [
-    { "label": "Pop / R&B", "icon": "🎶", "track": "Blinding Lights", "artist": "The Weeknd" },
-    { "label": "Rap / Hip-Hop", "icon": "🎤", "track": "God's Plan", "artist": "Drake" },
-    { "label": "Classic", "icon": "🎻", "track": "Bohemian Rhapsody", "artist": "Queen" },
-    { "label": "Nostalgic", "icon": "🌅", "track": "Hotel California", "artist": "Eagles" }
+  {"label":"Pop / R&B","icon":"🎶","track":"Blinding Lights","artist":"The Weeknd","ytId":"4NRXx6U8ABQ"},
+  {"label":"Rap / Hip-Hop","icon":"🎤","track":"God's Plan","artist":"Drake","ytId":"xpVfcZ0ZcFM"},
+  {"label":"Classic","icon":"🎻","track":"Bohemian Rhapsody","artist":"Queen","ytId":"fJ9rUzIMcZQ"},
+  {"label":"Nostalgic","icon":"🌅","track":"Hotel California","artist":"Eagles","ytId":"BciS5krYL80"},
 ]
 
 GENRE_SONGS = {
-    "Pop / R&B": [
-        {"title": "Blinding Lights", "artist": "The Weeknd", "ytId": "4NRXx6U8ABQ"},
-        {"title": "As It Was", "artist": "Harry Styles", "ytId": "H5v3kku4y6Q"},
-        {"title": "Watermelon Sugar", "artist": "Harry Styles", "ytId": "E07s5ZYygMg"},
-        {"title": "Anti-Hero", "artist": "Taylor Swift", "ytId": "b1kbLwvqugk"},
-        {"title": "Levitating", "artist": "Dua Lipa", "ytId": "TUVcZfQe-Kw"}
-    ],
-    "Rap / Hip-Hop": [
-        {"title": "God's Plan", "artist": "Drake", "ytId": "xpVfcZ0ZcFM"},
-        {"title": "HUMBLE.", "artist": "Kendrick Lamar", "ytId": "tvTRZJ-4EyI"},
-        {"title": "Rockstar", "artist": "Post Malone ft. 21 Savage", "ytId": "UceaB4D0jpo"},
-        {"title": "Sicko Mode", "artist": "Travis Scott", "ytId": "6ONRf7h3Mdk"}
-    ],
-    "Classic": [
-        {"title": "Bohemian Rhapsody", "artist": "Queen", "ytId": "fJ9rUzIMcZQ"},
-        {"title": "Don't Stop Me Now", "artist": "Queen", "ytId": "HgzGwKwLmgM"},
-        {"title": "Hotel California", "artist": "Eagles", "ytId": "BciS5krYL80"}
-    ],
-    "Nostalgic": [
-        {"title": "Hotel California", "artist": "Eagles", "ytId": "BciS5krYL80"},
-        {"title": "Take On Me", "artist": "a-ha", "ytId": "djV11Xbc914"},
-        {"title": "Africa", "artist": "Toto", "ytId": "FTQbiNvZqaY"}
-    ]
+  "Pop / R&B": [
+    {"title":"Blinding Lights","artist":"The Weeknd","ytId":"4NRXx6U8ABQ"},
+    {"title":"As It Was","artist":"Harry Styles","ytId":"H5v3kku4y6Q"},
+    {"title":"Watermelon Sugar","artist":"Harry Styles","ytId":"E07s5ZYygMg"},
+    {"title":"Anti-Hero","artist":"Taylor Swift","ytId":"b1kbLwvqugk"},
+    {"title":"Levitating","artist":"Dua Lipa","ytId":"TUVcZfQe-Kw"},
+    {"title":"Save Your Tears","artist":"The Weeknd","ytId":"XXYlFuWEuKI"},
+    {"title":"Peaches","artist":"Justin Bieber","ytId":"tQ0yjYUFKAE"},
+    {"title":"Stay","artist":"The Kid LAROI & Justin Bieber","ytId":"kTJczUoc26U"},
+    {"title":"Positions","artist":"Ariana Grande","ytId":"tcYodQoapMg"},
+    {"title":"Good 4 U","artist":"Olivia Rodrigo","ytId":"gNi_6U5Pm_o"},
+    {"title":"drivers license","artist":"Olivia Rodrigo","ytId":"ZmDBbnmKpqQ"},
+    {"title":"Love Story (Taylor's Version)","artist":"Taylor Swift","ytId":"8xg3vE8Ie_E"},
+    {"title":"Circles","artist":"Post Malone","ytId":"wXhTHyIgQ_U"},
+    {"title":"Starboy","artist":"The Weeknd","ytId":"34Na4j8AVgA"},
+    {"title":"Shape of You","artist":"Ed Sheeran","ytId":"JGwWNGJdvx8"},
+  ],
+  "Rap / Hip-Hop": [
+    {"title":"God's Plan","artist":"Drake","ytId":"xpVfcZ0ZcFM"},
+    {"title":"HUMBLE.","artist":"Kendrick Lamar","ytId":"tvTRZJ-4EyI"},
+    {"title":"Rockstar","artist":"Post Malone ft. 21 Savage","ytId":"UceaB4D0jpo"},
+    {"title":"Sicko Mode","artist":"Travis Scott","ytId":"6ONRf7h3Mdk"},
+    {"title":"Congratulations","artist":"Post Malone","ytId":"SC4xMk98Pdc"},
+    {"title":"Lucid Dreams","artist":"Juice WRLD","ytId":"mzB1VGEGcSU"},
+    {"title":"XO Tour Llif3","artist":"Lil Uzi Vert","ytId":"WrsFXgrun6g"},
+    {"title":"Old Town Road","artist":"Lil Nas X","ytId":"w2Ov5jzm3j8"},
+    {"title":"Hotline Bling","artist":"Drake","ytId":"uxpDa-c-4Mc"},
+    {"title":"Rap God","artist":"Eminem","ytId":"XbGs_qK2PQA"},
+    {"title":"MIDDLE CHILD","artist":"J. Cole","ytId":"MaT4Jk77af8"},
+    {"title":"Fefe","artist":"6ix9ine ft. Nicki Minaj","ytId":"qNkR6y_kBjg"},
+    {"title":"Money In The Grave","artist":"Drake ft. Rick Ross","ytId":"RjWGetUKqzM"},
+    {"title":"Big Rings","artist":"Drake & Future","ytId":"7GaRr2GGzao"},
+    {"title":"Wow.","artist":"Post Malone","ytId":"SsodjxbHdcE"},
+  ],
+  "Classic": [
+    {"title":"Bohemian Rhapsody","artist":"Queen","ytId":"fJ9rUzIMcZQ"},
+    {"title":"Don't Stop Me Now","artist":"Queen","ytId":"HgzGwKwLmgM"},
+    {"title":"Hotel California","artist":"Eagles","ytId":"BciS5krYL80"},
+    {"title":"Stairway to Heaven","artist":"Led Zeppelin","ytId":"QkF3oxziUI4"},
+    {"title":"Sweet Child O' Mine","artist":"Guns N' Roses","ytId":"1w7OgIMMRc4"},
+    {"title":"November Rain","artist":"Guns N' Roses","ytId":"8SbUC-UaAxE"},
+    {"title":"Sultans of Swing","artist":"Dire Straits","ytId":"0fAQhSRLQnM"},
+    {"title":"Eye of the Tiger","artist":"Survivor","ytId":"btPJPFnesV4"},
+    {"title":"Livin' on a Prayer","artist":"Bon Jovi","ytId":"lDK9QqIzhwk"},
+    {"title":"Jump","artist":"Van Halen","ytId":"SwYN7mTi6HM"},
+    {"title":"Purple Rain","artist":"Prince","ytId":"TvnYmWpD_T8"},
+    {"title":"With or Without You","artist":"U2","ytId":"ujNeHIo9dAU"},
+    {"title":"We Will Rock You","artist":"Queen","ytId":"-tJYN-eG1zk"},
+    {"title":"Dream On","artist":"Aerosmith","ytId":"89dGtCN_cPg"},
+    {"title":"Should I Stay or Should I Go","artist":"The Clash","ytId":"BN1WwnEDWAM"},
+  ],
+  "Nostalgic": [
+    {"title":"Hotel California","artist":"Eagles","ytId":"BciS5krYL80"},
+    {"title":"Take On Me","artist":"a-ha","ytId":"djV11Xbc914"},
+    {"title":"Africa","artist":"Toto","ytId":"FTQbiNvZqaY"},
+    {"title":"Don't You (Forget About Me)","artist":"Simple Minds","ytId":"CdqoNKCCt7A"},
+    {"title":"Every Breath You Take","artist":"The Police","ytId":"OMOGaugKpzs"},
+    {"title":"Come On Eileen","artist":"Dexys Midnight Runners","ytId":"qpbIaE5Bhdk"},
+    {"title":"Girls Just Want to Have Fun","artist":"Cyndi Lauper","ytId":"PIb6AZdTr-A"},
+    {"title":"Wake Me Up Before You Go-Go","artist":"Wham!","ytId":"pITmCFYkWN8"},
+    {"title":"Walking on Sunshine","artist":"Katrina & The Waves","ytId":"iPUmE-tne5U"},
+    {"title":"Sweet Home Alabama","artist":"Lynyrd Skynyrd","ytId":"ye5BuYf8q4o"},
+    {"title":"Piano Man","artist":"Billy Joel","ytId":"gxEPV4kolz0"},
+    {"title":"Summer of '69","artist":"Bryan Adams","ytId":"9f06QZCVUHg"},
+    {"title":"99 Luftballons","artist":"Nena","ytId":"La4Dcd1aUcI"},
+    {"title":"Kokomo","artist":"The Beach Boys","ytId":"pAwR6C82TCI"},
+    {"title":"867-5309/Jenny","artist":"Tommy Tutone","ytId":"6dx_8mHxMI0"},
+  ],
 }
 
-# Xonandalar haqida backend ma'lumotlar bazasi (index.html ichidagi JS mantiqlari Pythonga o'tkazildi)
-ARTISTS_DB = {
-    "eminem": {
-        "name": "Eminem",
-        "genre": "Rap / Hip-Hop",
-        "bio": "Eminem (Marshall Mathers) — tarixdagi eng buyuk va eng ko'p albomi sotilgan rep ijrochilaridan biri. O'zining tezkor aytishi (fast flow) va chuqur ma'noli matnlari bilan tanilgan.",
-        "tracks": ["Lose Yourself", "Stan", "Without Me", "Not Afraid", "Rap God"],
-        "albums": ["The Slim Shady LP (1999)", "The Marshall Mathers LP (2000)", "The Eminem Show (2002)"]
-    },
-    "the weeknd": {
-        "name": "The Weeknd",
-        "genre": "Pop / R&B / Synth-Pop",
-        "bio": "The Weeknd (Abel Tesfaye) — Kanada professional qo'shiqchisi. U o'zining g'amgin R&B ohanglari va zamonaviy 80-yillar retro musiqasi uslubi bilan jahon sahnalarini zabt etgan.",
-        "tracks": ["Blinding Lights", "Save Your Tears", "Starboy", "The Hills", "Call Out My Name"],
-        "albums": ["Trilogy (2012)", "After Hours (2020)", "Dawn FM (2022)"]
-    },
-    "billie eilish": {
-        "name": "Billie Eilish",
-        "genre": "Alternative Pop / Indie",
-        "bio": "Billie Eilish — o'ziga xos pichirlab kuylash uslubi (whisper pop) va akasi Finneas bilan yaratgan g'ayrioddiy musiqiy ohanglari tufayli juda yosh guruhda yulduzga aylangan san'atkor.",
-        "tracks": ["Bad Guy", "When the Party's Over", "Everything I Wanted", "Happier Than Ever"],
-        "albums": ["When We All Fall Asleep... (2019)", "Happier Than Ever (2021)"]
-    }
-}
+MUSIC_DB = [
+  {"name":"The Weeknd","aliases":["the weeknd","weeknd","уикенд"],"emoji":"🌃",
+   "photo":"https://img.youtube.com/vi/4NRXx6U8ABQ/mqdefault.jpg",
+   "tagline":"Kanadalik R&B/Pop yulduzi, 'Blinding Lights' ijrochisi",
+   "facts":[{"key":"Janr","val":"R&B, Pop, Synth-pop"},{"key":"Mamlakat","val":"Kanada"},{"key":"Faoliyati","val":"2010 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Abel Tesfaye (The Weeknd) - zamonaviy R&B sohasidagi eng katta yulduzlardan biri. Uning 80-yillar sintipopiga yaqin uslubi butun dunyo bo'ylab milliardlab tinglashlarga ega bo'ldi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Beauty Behind the Madness","year":"2015"},{"name":"Starboy","year":"2016"},{"name":"After Hours","year":"2020"},{"name":"Dawn FM","year":"2022"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Blinding Lights","ytId":"4NRXx6U8ABQ"},{"title":"Starboy","ytId":"34Na4j8AVgA"},{"title":"The Hills","ytId":"yzTuBuRdAyA"},{"title":"Can't Feel My Face","ytId":"KEI4qSrkPAs"},{"title":"Save Your Tears","ytId":"XXYlFuWEuKI"}]}
+   ],"summary":"The Weeknd zamonaviy pop/R&B sahnasidagi eng nufuzli ijrochilardan biri hisoblanadi."},
 
-# ── FRONTEND INTERFEYSI (index.html to'liq main.py ichiga joylandi) ───────────
-@app.get("/", response_class=HTMLResponse)
-async def index():
-    html_content = """
-    <!DOCTYPE html>
-    <html lang="uz">
-    <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>MoodTune AI — Yandex GPT</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet" />
-    <style>
-      :root {
-        --bg: #060606; --surface: #111111; --surface2: #1a1a1a; --border: #222222;
-        --fire: #ff5722; --fire-glow: #ff9100; --text: #f5f5f5; --muted: #777777;
-        --radius: 16px;
-      }
-      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background: var(--bg); color: var(--text); font-family: 'Space Grotesk', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
-      header { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--border); background: rgba(6,6,6,0.95); position: sticky; top:0; z-index:100; }
-      .logo-area { font-weight: 700; font-size: 1.25rem; }
-      .logo-area span { color: var(--fire-glow); }
-      .nav-tabs { display: flex; gap: 5px; background: var(--surface); padding: 4px; border-radius: 10px; }
-      .nav-tab { background: none; border: none; color: var(--muted); padding: 8px 16px; cursor: pointer; border-radius: 6px; font-weight: 600; }
-      .nav-tab.active { background: var(--surface2); color: var(--fire-glow); }
-      .page { display: none; flex: 1; flex-direction: column; padding: 20px; }
-      .page.active { display: flex; }
-      .trending-section { max-width: 720px; margin: 0 auto; width: 100%; }
-      .genre-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px; }
-      .genre-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 15px; cursor: pointer; transition: 0.2s; }
-      .genre-card:hover { border-color: var(--fire); }
-      .chat-container { max-width: 720px; margin: 0 auto; width: 100%; flex: 1; display: flex; flex-direction: column; padding-bottom: 120px; }
-      .messages { display: flex; flex-direction: column; gap: 15px; margin-top: 20px; }
-      .msg { display: flex; gap: 10px; max-width: 85%; }
-      .msg.user { align-self: flex-end; flex-direction: row-reverse; }
-      .bubble { padding: 12px 16px; border-radius: var(--radius); font-size: 0.95rem; line-height: 1.5; }
-      .msg.bot .bubble { background: var(--surface); border: 1px solid var(--border); }
-      .msg.user .bubble { background: linear-gradient(135deg, var(--fire), #d84315); color: #fff; }
-      .control-panel { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(6,6,6,0.95); border-top: 1px solid var(--border); padding: 15px; }
-      .input-box { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
-      .text-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: #fff; padding: 12px; resize: none; outline: none; }
-      .action-btn { background: var(--fire); border: none; color: #fff; padding: 0 25px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-      
-      /* MODAL */
-      .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
-      .modal { background: var(--surface); border: 1px solid var(--border); padding: 20px; border-radius: 16px; max-width: 400px; width: 100%; }
-      .modal-close { background: var(--surface2); border: none; color: #fff; padding: 5px 10px; cursor: pointer; float: right; border-radius: 5px; }
-      .modal-list { margin-top: 15px; display: flex; flex-direction: column; gap: 8px; }
-      .modal-item { background: var(--surface2); padding: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-      .yt-link { color: #ff4444; text-decoration: none; font-size: 0.8rem; font-weight: bold; }
-    </style>
-    </head>
-    <body>
+  {"name":"Drake","aliases":["drake","дрейк"],"emoji":"🦉",
+   "photo":"https://img.youtube.com/vi/xpVfcZ0ZcFM/mqdefault.jpg",
+   "tagline":"Kanadalik rap yulduzi, hip-hop sohasining eng ko'p sotuvchi artistlaridan biri",
+   "facts":[{"key":"Janr","val":"Hip-Hop, R&B, Rap"},{"key":"Mamlakat","val":"Kanada"},{"key":"Faoliyati","val":"2006 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Drake zamonaviy hip-hop sanoatining eng muvaffaqiyatli artistlaridan biri. U OVO mehnat tashkiloti orqali boshqa artistlarni ham qo'llab-quvvatlaydi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Take Care","year":"2011"},{"name":"Views","year":"2016"},{"name":"Scorpion","year":"2018"},{"name":"Certified Lover Boy","year":"2021"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"God's Plan","ytId":"xpVfcZ0ZcFM"},{"title":"One Dance","ytId":"iHCn3a3YIOU"},{"title":"Hotline Bling","ytId":"uxpDa-c-4Mc"},{"title":"In My Feelings","ytId":"DRS_PpOrUZ4"},{"title":"Started From the Bottom","ytId":"RubczQuh47k"}]}
+   ],"summary":"Drake hip-hop sanoatining eng nufuzli va ta'sirli figuralaridan biri."},
 
-    <header>
-      <div class="logo-area">🎵 MoodTune<span>AI</span></div>
-      <div class="nav-tabs">
-        <button class="nav-tab active" onclick="switchPage('mood')">🎵 Kayfiyat Chat</button>
-        <button class="nav-tab" onclick="switchPage('info')">🎤 Musiqa Info</button>
-      </div>
-    </header>
+  {"name":"Taylor Swift","aliases":["taylor swift","тейлор свифт"],"emoji":"🎀",
+   "photo":"https://img.youtube.com/vi/nfWlot6h_JM/mqdefault.jpg",
+   "tagline":"Amerikalik pop/country yulduzi va eng ko'p mukofotga ega qo'shiqchi sozandalardan biri",
+   "facts":[{"key":"Janr","val":"Pop, Country, Folk-pop"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"2006 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Taylor Swift country sahnasidan boshlab, keyinchalik pop musiqaning eng yirik yulduziga aylangan. U o'z qo'shiqlarini o'zi yozadi va shaxsiy hayotini ijodida aks ettiradi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"1989","year":"2014"},{"name":"Reputation","year":"2017"},{"name":"Folklore","year":"2020"},{"name":"Midnights","year":"2022"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Shake It Off","ytId":"nfWlot6h_JM"},{"title":"Blank Space","ytId":"e-ORhEE9VVg"},{"title":"Anti-Hero","ytId":"b1kbLwvqugk"},{"title":"Love Story","ytId":"8xg3vE8Ie_E"},{"title":"Cruel Summer","ytId":"ic8j13piAhQ"}]}
+   ],"summary":"Taylor Swift zamonaviy pop musiqaning eng nufuzli va ta'sirchan ijrochisi hisoblanadi."},
 
-    <div class="page active" id="page-mood">
-      <div class="trending-section">
-        <div style="color: var(--muted); font-size: 0.8rem; font-weight: bold;">🔥 TAVSIYA ETILGAN JANRLAR</div>
-        <div class="genre-grid" id="genre-grid"></div>
-      </div>
-      <div class="chat-container">
-        <div class="messages" id="chat-stream">
-          <div class="msg bot"><div class="bubble">Salom! Bugun kayfiyatingiz qanday? Qanday musiqa tinglashni istaysiz? Menga yozing, sizga mos variantlarni topaman!</div></div>
-        </div>
-      </div>
-      <div class="control-panel">
-        <div class="input-box">
-          <textarea class="text-box" id="user-input" rows="1" placeholder="Kayfiyatingizni tasvirlang..."></textarea>
-          <button class="action-btn" onclick="sendMessage('mood')">Yuborish</button>
-        </div>
-      </div>
-    </div>
+  {"name":"Ed Sheeran","aliases":["ed sheeran","эд ширан"],"emoji":"🎸",
+   "photo":"https://img.youtube.com/vi/JGwWNGJdvx8/mqdefault.jpg",
+   "tagline":"Britaniyalik pop/akustik gitara qo'shiqchisi va bastakor",
+   "facts":[{"key":"Janr","val":"Pop, Folk-pop, Acoustic"},{"key":"Mamlakat","val":"Buyuk Britaniya"},{"key":"Faoliyati","val":"2011 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Ed Sheeran gitara bilan kontsert berishdan boshlab, dunyo bo'ylab eng ko'p sotuvchi pop artistlardan biriga aylandi. Uning qo'shiqlari romantik va samimiy uslubda yoziladi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"+ (Plus)","year":"2011"},{"name":"x (Multiply)","year":"2014"},{"name":"÷ (Divide)","year":"2017"},{"name":"= (Equals)","year":"2021"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Shape of You","ytId":"JGwWNGJdvx8"},{"title":"Perfect","ytId":"2Vv-BfVoq4g"},{"title":"Thinking Out Loud","ytId":"lp-EO5I60KA"},{"title":"Photograph","ytId":"nSDgHBxUbVQ"},{"title":"Bad Habits","ytId":"orJSJGHjBLI"}]}
+   ],"summary":"Ed Sheeran zamonaviy pop musiqaning eng yumshoq va ommabop ovozlaridan biri."},
 
-    <div class="page" id="page-info">
-      <div class="chat-container">
-        <div class="messages" id="info-stream">
-          <div class="msg bot"><div class="bubble">🎤 Istalgan mashhur ijodkor nomini yozing (Masalan: Eminem, The Weeknd yoki Billie Eilish) va men u haqida to'liq ma'lumot beraman!</div></div>
-        </div>
-      </div>
-      <div class="control-panel">
-        <div class="input-box">
-          <textarea class="text-box" id="info-input" rows="1" placeholder="Xonanda nomini yozing..."></textarea>
-          <button class="action-btn" onclick="sendMessage('info')">Qidirish</button>
-        </div>
-      </div>
-    </div>
+  {"name":"Adele","aliases":["adele","адель"],"emoji":"🎤",
+   "photo":"https://img.youtube.com/vi/rYEDA3JcQqw/mqdefault.jpg",
+   "tagline":"Britaniyalik soul/pop qo'shiqchisi, kuchli vokal ovozi bilan tanilgan",
+   "facts":[{"key":"Janr","val":"Soul, Pop, Ballad"},{"key":"Mamlakat","val":"Buyuk Britaniya"},{"key":"Faoliyati","val":"2006 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Adele o'zining kuchli va his-tuyg'uga boy ovozi bilan butun dunyoda tanilgan. Uning albomlari ko'pincha shaxsiy hayotidagi munosabatlar haqida bo'ladi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"19","year":"2008"},{"name":"21","year":"2011"},{"name":"25","year":"2015"},{"name":"30","year":"2021"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Rolling in the Deep","ytId":"rYEDA3JcQqw"},{"title":"Someone Like You","ytId":"hLQl3WQQoQ0"},{"title":"Hello","ytId":"YQHsXMglC9A"},{"title":"Set Fire to the Rain","ytId":"Ri7-vnrJD3k"},{"title":"Easy on Me","ytId":"U3ASj1L6_sY"}]}
+   ],"summary":"Adele zamonaviy soul-pop musiqaning eng kuchli ovozlaridan biri sifatida tanilgan."},
 
-    <div class="modal-overlay" id="genre-modal">
-      <div class="modal">
-        <button class="modal-close" onclick="closeModal()">✕</button>
-        <h3 id="modal-title" style="margin-bottom:10px;">Janr</h3>
-        <div class="modal-list" id="modal-list"></div>
-      </div>
-    </div>
+  {"name":"Billie Eilish","aliases":["billie eilish","билли айлиш"],"emoji":"🖤",
+   "photo":"https://img.youtube.com/vi/DyDfgMOUjCI/mqdefault.jpg",
+   "tagline":"Amerikalik pop yulduzi, alternativ va minimalistik uslubi bilan tanilgan",
+   "facts":[{"key":"Janr","val":"Pop, Alternative, Electropop"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"2015 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Billie Eilish o'zining shivirlovchi vokal uslubi va qoraygan alternativ pop sound'i bilan yosh avlod orasida juda mashhur bo'ldi. U ukasi Finneas bilan birga ko'p qo'shiqlar yozadi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"When We All Fall Asleep, Where Do We Go?","year":"2019"},{"name":"Happier Than Ever","year":"2021"},{"name":"Hit Me Hard and Soft","year":"2024"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Bad Guy","ytId":"DyDfgMOUjCI"},{"title":"Ocean Eyes","ytId":"viimfQi_pUw"},{"title":"Happier Than Ever","ytId":"5GJWxDKyk3A"},{"title":"Birds of a Feather","ytId":"_XYLD-gOe0I"},{"title":"Lovely","ytId":"AKlqpxFtS2k"}]}
+   ],"summary":"Billie Eilish zamonaviy alternativ pop sohasining eng noyob ovozlaridan biri."},
 
-    <script>
-      function switchPage(page) {
-        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-        document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-        if(page === 'mood') {
-          document.getElementById('page-mood').classList.add('active');
-        } else {
-          document.getElementById('page-info').classList.add('active');
-        }
-        event.target.classList.add('active');
-      }
+  {"name":"Ariana Grande","aliases":["ariana grande","ариана гранде"],"emoji":"🎀",
+   "photo":"https://img.youtube.com/vi/gl1aHhXnN1k/mqdefault.jpg",
+   "tagline":"Amerikalik pop/R&B qo'shiqchisi, keng diapazonli ovozi bilan tanilgan",
+   "facts":[{"key":"Janr","val":"Pop, R&B"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"2008 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Ariana Grande aktrisalikdan musiqaga o'tib, zamonaviy pop musiqaning yetakchi ovozlaridan biriga aylandi. Uning vokal diapazoni va R&B ta'siri uning uslubini ajratib turadi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Dangerous Woman","year":"2016"},{"name":"Sweetener","year":"2018"},{"name":"Thank U, Next","year":"2019"},{"name":"Eternal Sunshine","year":"2024"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Thank U, Next","ytId":"gl1aHhXnN1k"},{"title":"7 Rings","ytId":"QYh6mYIJG2Y"},{"title":"No Tears Left to Cry","ytId":"ffxKSjUwKdU"},{"title":"Problem","ytId":"iS1g8G_njx8"},{"title":"Positions","ytId":"tcYodQoapMg"}]}
+   ],"summary":"Ariana Grande zamonaviy pop-R&B sohasining eng kuchli vokalchilaridan biri."},
 
-      async function loadGenres() {
-        const res = await fetch('/api/genres');
-        const genres = await res.json();
-        const grid = document.getElementById('genre-grid');
-        grid.innerHTML = '';
-        genres.forEach(g => {
-          grid.innerHTML += `
-            <div class="genre-card" onclick="openGenre('${g.label}')">
-              <div style="font-size:1.3rem">${g.icon}</div>
-              <div style="font-weight:bold; margin-top:5px">${g.label}</div>
-              <div style="font-size:0.8rem; color:var(--muted)">Xit: ${g.track}</div>
-            </div>
-          `;
-        });
-      }
+  {"name":"Eminem","aliases":["eminem","эминем","marshall mathers"],"emoji":"🎤",
+   "photo":"https://img.youtube.com/vi/_Yhyp-_hX2s/mqdefault.jpg",
+   "tagline":"Amerikalik rap legendasi, tarixdagi eng ko'p sotilgan reperlardan biri",
+   "facts":[{"key":"Janr","val":"Hip-Hop, Rap"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"1996 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Eminem tezkor va texnik jihatdan murakkab rep uslubi bilan hip-hop tarixidagi eng nufuzli artistlardan biriga aylandi. Uning qo'shiqlari ko'pincha shaxsiy kurashlari va ijtimoiy mavzularga bag'ishlangan."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"The Marshall Mathers LP","year":"2000"},{"name":"The Eminem Show","year":"2002"},{"name":"Recovery","year":"2010"},{"name":"Curtain Call","year":"2005"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Lose Yourself","ytId":"_Yhyp-_hX2s"},{"title":"Not Afraid","ytId":"j5-yKhDd64s"},{"title":"Stan","ytId":"gOMhN-hfMtY"},{"title":"Without Me","ytId":"YVkUvmDQ3HY"},{"title":"Love the Way You Lie","ytId":"uelHwf8o7_U"}]}
+   ],"summary":"Eminem hip-hop tarixidagi eng texnik va ta'sirli reperlardan biri hisoblanadi."},
 
-      async function openGenre(genreName) {
-        document.getElementById('modal-title').innerText = genreName;
-        const res = await fetch(`/api/genres/${encodeURIComponent(genreName)}`);
-        const songs = await res.json();
-        const list = document.getElementById('modal-list');
-        list.innerHTML = '';
-        songs.forEach(s => {
-          list.innerHTML += `
-            <div class="modal-item">
-              <div>
-                <div style="font-weight:bold; font-size:0.9rem">${s.title}</div>
-                <div style="font-size:0.75rem; color:var(--muted)">${s.artist}</div>
-              </div>
-              <a class="yt-link" href="https://youtube.com/watch?v=${s.ytId}" target="_blank">Eshitish ↗</a>
-            </div>
-          `;
-        });
-        document.getElementById('genre-modal').style.display = 'flex';
-      }
+  {"name":"Michael Jackson","aliases":["michael jackson","майкл джексон","mj"],"emoji":"🕺",
+   "photo":"https://img.youtube.com/vi/Zi_XLOBDo_Y/mqdefault.jpg",
+   "tagline":"'Pop qiroli' nomi bilan tanilgan, musiqa tarixidagi eng ta'sirli san'atkor",
+   "facts":[{"key":"Janr","val":"Pop, R&B, Funk"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"1964-2009"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Michael Jackson dunyo tarixidagi eng katta sotuvchi va eng ta'sirli pop ijrochisiga aylandi. Uning raqs uslubi va video-kliplari musiqa sanoatini o'zgartirdi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Off the Wall","year":"1979"},{"name":"Thriller","year":"1982"},{"name":"Bad","year":"1987"},{"name":"Dangerous","year":"1991"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Billie Jean","ytId":"Zi_XLOBDo_Y"},{"title":"Thriller","ytId":"sOnqjkJTMaA"},{"title":"Beat It","ytId":"oRdxUFDoQe0"},{"title":"Smooth Criminal","ytId":"h_D3VFfhvs4"},{"title":"Man in the Mirror","ytId":"PivWY9wn5ps"}]}
+   ],"summary":"Michael Jackson 'Pop qiroli' sifatida musiqa tarixiga abadiy muhrlangan."},
 
-      function closeModal() {
-        document.getElementById('genre-modal').style.display = 'none';
-      }
+  {"name":"Beyoncé","aliases":["beyonce","beyoncé","бейонсе"],"emoji":"👑",
+   "photo":"https://img.youtube.com/vi/bnVUHWCynig/mqdefault.jpg",
+   "tagline":"Amerikalik R&B/Pop qirolichasi, Grammy mukofotlarining rekordchisi",
+   "facts":[{"key":"Janr","val":"R&B, Pop, Soul"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"1997 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Beyoncé Destiny's Child guruhidan boshlab, mustaqil ravishda zamonaviy R&B va pop musiqaning eng nufuzli ovozlaridan biriga aylandi. U sahna mahorati va vokal kuchi bilan ajralib turadi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Dangerously in Love","year":"2003"},{"name":"Lemonade","year":"2016"},{"name":"Renaissance","year":"2022"},{"name":"Cowboy Carter","year":"2024"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Halo","ytId":"bnVUHWCynig"},{"title":"Single Ladies","ytId":"4m1EFMoRFvY"},{"title":"Crazy in Love","ytId":"ViwtNLUqkMY"},{"title":"Formation","ytId":"WDZJPJV__bQ"},{"title":"Texas Hold 'Em","ytId":"SdMODhMlyMY"}]}
+   ],"summary":"Beyoncé zamonaviy musiqa sanoatining eng nufuzli va ko'p mukofotlangan yulduzlaridan biri."},
 
-      async function sendMessage(type) {
-        const inputId = type === 'mood' ? 'user-input' : 'info-input';
-        const streamId = type === 'mood' ? 'chat-stream' : 'info-stream';
-        const inputEl = document.getElementById(inputId);
-        const text = inputEl.value.trim();
-        if(!text) return;
+  {"name":"Bruno Mars","aliases":["bruno mars","бруно марс"],"emoji":"🎩",
+   "photo":"https://img.youtube.com/vi/OPf0YbXqDm0/mqdefault.jpg",
+   "tagline":"Amerikalik pop/funk qo'shiqchisi, sahna mahorati va retro uslubi bilan tanilgan",
+   "facts":[{"key":"Janr","val":"Pop, Funk, R&B"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"2004 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Bruno Mars zamonaviy pop musiqaga 70-80-yillar funk va soul uslublarini qaytargan ijrochi. Uning jonli ijro mahorati alohida e'tirof etiladi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Doo-Wops & Hooligans","year":"2010"},{"name":"Unorthodox Jukebox","year":"2012"},{"name":"24K Magic","year":"2016"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Uptown Funk","ytId":"OPf0YbXqDm0"},{"title":"24K Magic","ytId":"UqyT8IEBkvY"},{"title":"Just the Way You Are","ytId":"LjhCEhWiKXk"},{"title":"That's What I Like","ytId":"PMivT7MJ41M"},{"title":"Grenade","ytId":"XjVNlgyjcpM"}]}
+   ],"summary":"Bruno Mars zamonaviy pop-funk uslubining eng ko'zga ko'ringan vakili."},
 
-        inputEl.value = '';
-        const stream = document.getElementById(streamId);
-        stream.innerHTML += `<div class="msg user"><div class="bubble">${text}</div></div>`;
-        
-        const loaderId = 'loader-' + Date.now();
-        stream.innerHTML += `<div class="msg bot" id="${loaderId}"><div class="bubble">⚡ AI javob tayyorlamoqda...</div></div>`;
-        stream.scrollTop = stream.scrollHeight;
+  {"name":"Coldplay","aliases":["coldplay","колдплей"],"emoji":"🌈",
+   "photo":"https://img.youtube.com/vi/dvgZkm1xWPE/mqdefault.jpg",
+   "tagline":"Britaniyalik rok guruhi, dunyoda eng ko'p tinglanadigan jamoalardan biri",
+   "facts":[{"key":"Janr","val":"Alternative Rock, Pop Rock"},{"key":"Mamlakat","val":"Buyuk Britaniya"},{"key":"Faoliyati","val":"1996 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Coldplay - Chris Martin boshchiligidagi guruh, ularning musiqasi keng auditoriyaga ega va katta stadion kontsertlari bilan mashhur."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Parachutes","year":"2000"},{"name":"A Rush of Blood to the Head","year":"2002"},{"name":"Viva la Vida","year":"2008"},{"name":"Music of the Spheres","year":"2021"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Yellow","ytId":"yKNxeF4KMsY"},{"title":"Viva la Vida","ytId":"dvgZkm1xWPE"},{"title":"The Scientist","ytId":"RB-RcX5DS5A"},{"title":"Paradise","ytId":"1G4isv_Fylg"},{"title":"Hymn for the Weekend","ytId":"YykjpeuMNEk"}]}
+   ],"summary":"Coldplay dunyodagi eng katta stadion-rok guruhlaridan biri hisoblanadi."},
 
-        if (type === 'info') {
-          // Mahalliy bazadan qidirish (Musiqa Info qismi uchun tezkor backend mantiq)
-          const res = await fetch(`/api/search-artist?query=${encodeURIComponent(text)}`);
-          const data = await res.json();
-          document.getElementById(loaderId).remove();
-          
-          if(data.found) {
-            const a = data.artist;
-            let cardHtml = `<b>🎤 Ijodkor:</b> ${a.name}<br><b>🎵 Janr:</b> ${a.genre}<br><br><b>📝 Biografiya:</b> ${a.bio}<br><br><b>💿 Albomlar:</b><br>${a.albums.join('<br>')}<br><br><b>🔥 Top Treklar:</b><br>${a.tracks.join(', ')}`;
-            stream.innerHTML += `<div class="msg bot"><div class="bubble">${cardHtml}</div></div>`;
-          } else {
-            // Agar bazada bo'lmasa, umumiy AI orqali javob olamiz
-            await fetchAI(text, stream, "Siz musiqa ensiklopediyasiz. Ijodkorlar haqida ma'lumot bering.");
-          }
-        } else {
-          // Kayfiyat chat qismi uchun to'g'ridan-to'g'ri AI so'rovi
-          document.getElementById(loaderId).remove();
-          await fetchAI(text, stream, "Siz musiqa va ruhshunoslik ekspertisiz. Kayfiyatga qarab chiroyli qo'shiqlar tavsiya qiling.");
-        }
-        stream.scrollTop = stream.scrollHeight;
-      }
+  {"name":"Imagine Dragons","aliases":["imagine dragons","имеджин драгонс"],"emoji":"🐉",
+   "photo":"https://img.youtube.com/vi/W2TE0DjdNqI/mqdefault.jpg",
+   "tagline":"Amerikalik rok guruhi, anthem-uslubdagi xitlari bilan tanilgan",
+   "facts":[{"key":"Janr","val":"Alternative Rock, Pop Rock, Electronic"},{"key":"Mamlakat","val":"AQSH"},{"key":"Faoliyati","val":"2008 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Imagine Dragons rok va elektron musiqani birlashtirib, kuchli, energetik va keng auditoriyaga mos qo'shiqlar yaratadi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Night Visions","year":"2012"},{"name":"Evolve","year":"2017"},{"name":"Mercury - Act 1","year":"2021"},{"name":"Mercury - Act 2","year":"2022"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Believer","ytId":"W2TE0DjdNqI"},{"title":"Radioactive","ytId":"ktvTqknDobU"},{"title":"Thunder","ytId":"fKopy74weus"},{"title":"Demons","ytId":"mWRsgZuwf_8"},{"title":"Enemy","ytId":"D9G1VOjN_84"}]}
+   ],"summary":"Imagine Dragons zamonaviy alternativ-pop-rok sohasining eng ommabop guruhlaridan biri."},
 
-      async function fetchAI(text, stream, systemPrompt) {
-        const loaderId = 'loader-' + Date.now();
-        stream.innerHTML += `<div class="msg bot" id="${loaderId}"><div class="bubble">✍️ AI yozmoqda...</div></div>`;
-        
-        try {
-          const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-              system: systemPrompt,
-              messages: [{role: "user", content: text}]
-            })
-          });
-          const data = await response.json();
-          document.getElementById(loaderId).remove();
-          
-          if(data.reply) {
-            stream.innerHTML += `<div class="msg bot"><div class="bubble">${data.reply}</div></div>`;
-          } else {
-            stream.innerHTML += `<div class="msg bot"><div class="bubble">Kechirasiz, javob olishda xatolik yuz berdi.</div></div>`;
-          }
-        } catch(e) {
-          document.getElementById(loaderId).remove();
-          stream.innerHTML += `<div class="msg bot"><div class="bubble">Server bilan aloqa uzildi.</div></div>`;
-        }
-      }
+  {"name":"Dua Lipa","aliases":["dua lipa","дуа липа"],"emoji":"✨",
+   "photo":"https://img.youtube.com/vi/DyHkM3YFQVY/mqdefault.jpg",
+   "tagline":"Britaniyalik pop/disko-pop yulduzi, retro-disko uyg'onishining yetakchisi",
+   "facts":[{"key":"Janr","val":"Pop, Disco-pop, Dance"},{"key":"Mamlakat","val":"Buyuk Britaniya"},{"key":"Faoliyati","val":"2015 - hozirgacha"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Dua Lipa zamonaviy pop musiqaga 70-80-yillar disko ta'sirini qaytargan eng yorqin ovozlardan biri. Uning raqsga tushiriladigan xitlari butun dunyo bo'ylab mashhur."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Dua Lipa","year":"2017"},{"name":"Future Nostalgia","year":"2020"},{"name":"Radical Optimism","year":"2024"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Levitating","ytId":"TUVcZfQe-Kw"},{"title":"Don't Start Now","ytId":"oygrmKOqttA"},{"title":"New Rules","ytId":"k2qgadSvNyU"},{"title":"IDGAF","ytId":"DyHkM3YFQVY"},{"title":"Houdini","ytId":"5OBDFaLCDzQ"}]}
+   ],"summary":"Dua Lipa 2020-yillar pop-disko uyg'onishining yetakchi ovozi hisoblanadi."},
 
-      window.onload = loadGenres;
-    </script>
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=html_content, status_code=200)
+  {"name":"Скриптонит","aliases":["скриптонит","scriptonite","scriptonit"],"emoji":"🔮",
+   "photo":"https://img.youtube.com/vi/FZIKzFpVLRM/mqdefault.jpg",
+   "tagline":"Qozog'istonlik trap/rap ijrochisi, MDH trap musiqasining asoschisi",
+   "facts":[{"key":"Janr","val":"Trap, Hip-Hop, Rap"},{"key":"Mamlakat","val":"Qozog'iston"},{"key":"Faoliyati","val":"2012 - hozirgacha"},{"key":"Til","val":"Rus"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"Скриптонит (Adil Zhalelov) MDH trap musiqasining asoschilaridan biri hisoblanadi. Uning melanxolik trap uslubi va chuqur lirikasi uni o'ziga xos qiladi."},
+     {"title":"Albomlar","icon":"💿","type":"albums","content":[{"name":"Смутное Время","year":"2016"},{"name":"Дом с нормальным светом","year":"2018"},{"name":"Дети Адама","year":"2023"}]},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"Властелин Калец","ytId":"FZIKzFpVLRM"},{"title":"На Нас","ytId":"jPz5A7SEARCH"},{"title":"Незнакомка","ytId":"SEARCH"},{"title":"Первый Снег","ytId":"SEARCH"},{"title":"Пыяла","ytId":"SEARCH"}]}
+   ],"summary":"Скриптонит MDH rap sahnasining eng ta'sirli va noyob ovozlaridan biri."},
 
+  {"name":"BAKR","aliases":["bakr","бакр"],"emoji":"🏔️",
+   "photo":"https://img.youtube.com/vi/Rn5GNpGSrMQ/mqdefault.jpg",
+   "tagline":"Qirg'izistonlik trap/hip-hop ijrochisi, MDH yoshlar orasida mashhur",
+   "facts":[{"key":"Janr","val":"Hip-Hop, Trap, Rap"},{"key":"Mamlakat","val":"Qirg'iziston"},{"key":"Faoliyati","val":"2015 - hozirgacha"},{"key":"Til","val":"Qirg'iz, Rus"}],
+   "sections":[
+     {"title":"Biografiya","icon":"📖","type":"prose","content":"BAKR Qirg'izistondan chiqqan zamonaviy trap va hip-hop ijrochisi. U qirg'iz va rus tillarida ijro etib, MDH yoshlari orasida katta muxlislar bazasini to'plagan."},
+     {"title":"Top qo'shiqlar","icon":"🎵","type":"tracks","content":[{"title":"BAKR - Пустота","ytId":"Rn5GNpGSrMQ"},{"title":"BAKR - Больно","ytId":"SEARCH"},{"title":"BAKR - Холодно","ytId":"SEARCH"},{"title":"BAKR - Дорога","ytId":"SEARCH"},{"title":"BAKR - Небо","ytId":"SEARCH"}]},
+     {"title":"Uslub","icon":"🎨","type":"tags","content":["Trap","Hip-Hop","Qirg'iz rap","MDH rap","Yoshlar"]}
+   ],"summary":"BAKR Qirg'iziston rap sahnasining eng tanilgan vakili, MDH bo'ylab keng auditoriyaga ega ijrochi."},
+]
 
-# ── BACKEND API ENDPOINTLARI ──────────────────────────────────────────────────
+# ── FUZZY SEARCH ──────────────────────────────────────────────────────────────
+def levenshtein(a, b):
+    m, n = len(a), len(b)
+    dp = [[0]*(n+1) for _ in range(m+1)]
+    for i in range(m+1): dp[i][0] = i
+    for j in range(n+1): dp[0][j] = j
+    for i in range(1, m+1):
+        for j in range(1, n+1):
+            if a[i-1] == b[j-1]: dp[i][j] = dp[i-1][j-1]
+            else: dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+    return dp[m][n]
 
+def find_artist(text):
+    norm = text.lower().strip()
+    best, best_len = None, 0
+    for a in MUSIC_DB:
+        for alias in a["aliases"]:
+            if alias in norm and len(alias) > best_len:
+                best, best_len = a, len(alias)
+    if best: return {"artist": best, "fuzzy": False}
+    closest, closest_dist = None, float("inf")
+    MAX_DIST = 3
+    for a in MUSIC_DB:
+        for alias in a["aliases"]:
+            d = levenshtein(norm, alias)
+            if d < closest_dist:
+                closest_dist, closest = d, a
+    if closest and closest_dist <= MAX_DIST:
+        return {"artist": closest, "fuzzy": True, "dist": closest_dist}
+    return None
+
+# ── ENDPOINTS ─────────────────────────────────────────────────────────────────
 @app.get("/api/genres")
-async def get_genres():
-    return JSONResponse(content=GENRES)
-
+def get_genres(): return JSONResponse(GENRES)
 
 @app.get("/api/genres/{genre_name}")
-async def get_genre_songs(genre_name: str):
-    return JSONResponse(content=GENRE_SONGS.get(genre_name, []))
-
+def get_genre_songs(genre_name: str): return JSONResponse(GENRE_SONGS.get(genre_name, []))
 
 @app.get("/api/search-artist")
-async def search_artist(query: str):
-    """Musiqa Info qismi uchun ma'lumotlar bazasidan qidirish mantiqi"""
-    q = query.lower().strip()
-    for key, artist_data in ARTISTS_DB.items():
-        if key in q or q in key:
-            return JSONResponse(content={"found": True, "artist": artist_data})
-    return JSONResponse(content={"found": False})
-
+def search_artist(query: str = ""):
+    found = find_artist(query)
+    if found: return JSONResponse({"found": True, "artist": found["artist"], "fuzzy": found.get("fuzzy", False)})
+    return JSONResponse({"found": False})
 
 @app.post("/api/chat")
 async def chat(request: Request):
-    """Siz bergan API Key orqali Yandex GPT modeliga ulanish qismi"""
     body = await request.json()
-    messages = body.get("messages", [])
-    system_prompt = body.get("system", "")
+    messages   = body.get("messages", [])
+    system     = body.get("system", "")
+    max_tokens = body.get("max_tokens", 2000)
+    if not ANTHROPIC_API_KEY:
+        return JSONResponse({"error": "ANTHROPIC_API_KEY sozlanmagan"}, status_code=500)
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={"Content-Type":"application/json","x-api-key":ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01"},
+            json={"model":"claude-sonnet-4-6","max_tokens":max_tokens,"system":system,"messages":messages}
+        )
+    if resp.status_code != 200:
+        return JSONResponse(resp.json(), status_code=resp.status_code)
+    return JSONResponse(resp.json())
 
-    # Yandex GPT uchun so'rov formatini tayyorlash
-    yandex_messages = []
-    if system_prompt:
-        yandex_messages.append({"role": "system", "text": system_prompt})
-    
-    for m in messages:
-        # rollarni moslashtiramiz
-        role = "assistant" if m.get("role") == "assistant" or m.get("role") == "bot" else "user"
-        yandex_messages.append({"role": role, "text": m.get("content", "")})
-
-    # Yandex GPT API payload strukturasi
-    payload = {
-        "modelUri": f"gpt://{FOLDER_ID}/yandexgpt-lite/latest",
-        "completionOptions": {
-            "stream": False,
-            "temperature": 0.6,
-            "maxTokens": "2000"
-        },
-        "messages": yandex_messages
-    }
-
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Api-Key {YANDEX_API_KEY}"
-    }
-
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
-            # Yandex Cloud textGeneration API nuqtasiga so'rov yuborish
-            resp = await client.post(
-                "https://llm.api.cloud.yandex.net/foundationModels/v1/completion",
-                headers=headers,
-                json=payload
-            )
-            
-            if resp.status_code == 200:
-                result = resp.json()
-                # Kelgan javobdan tekstni ajratib olish
-                ai_text = result["result"]["alternatives"][0]["message"]["text"]
-                return JSONResponse(content={"reply": ai_text}, status_code=200)
-            else:
-                # Agar folder_id xato bo'lsa yoki universal rejim kerak bo'lsa, muqobil osonlashtirilgan javob tizimi
-                return JSONResponse(content={"reply": f"Musiqa tavsiyasi: '{messages[-1]['content']}' mavzusiga oid ajoyib xit qo'shiqlarni eshitishni tavsiya qilaman!"}, status_code=200)
-                
-        except Exception as e:
-            # Xatolik yuz bersa, dastur qotib qolmasligi uchun simulated aqlli javob qaytaradi
-            return JSONResponse(content={"reply": "Kayfiyatingiz uchun ajoyib retro va zamonaviy musiqalar ro'yxati yangilandi! Yuqoridagi janrlardan birini tanlab ajoyib treklarni tinglashingiz mumkin."}, status_code=200)
+# ── FRONTEND (HTML) ───────────────────────────────────────────────────────────
+@app.get("/", response_class=HTMLResponse)
+async def index():
+    with open("frontend/index.html", "r", encoding="utf-8") as f:
+        html = f.read()
+    return HTMLResponse(html)
