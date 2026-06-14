@@ -1,0 +1,1650 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
+<title>MoodTune AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:        #060606;
+    --surface:   #111111;
+    --surface2:  #1a1a1a;
+    --border:    #222222;
+    --fire:      #ff5722;
+    --fire-glow: #ff9100;
+    --text:      #f5f5f5;
+    --muted:     #777777;
+    --radius:    16px;
+    --font-head: 'Space Grotesk', sans-serif;
+    --font-mono: 'Space Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-head); min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden; }
+
+  /* HEADER */
+  header { display: flex; align-items: center; justify-content: space-between; padding: 18px 32px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: rgba(6,6,6,0.95); backdrop-filter: blur(16px); z-index: 100; flex-wrap: wrap; gap: 10px; }
+  .logo-area { display: flex; align-items: center; gap: 14px; }
+  .fire-wings { display: flex; align-items: center; width: 44px; height: 24px; }
+  .wing { width: 20px; height: 20px; background: linear-gradient(45deg, var(--fire), var(--fire-glow)); filter: drop-shadow(0 0 8px var(--fire)); }
+  .wing.left { border-radius: 0 100% 30% 100%; animation: flapLeft 3s ease-in-out infinite alternate; }
+  .wing.right { border-radius: 100% 0 100% 30%; animation: flapRight 3s ease-in-out infinite alternate; }
+  @keyframes flapLeft { 0% { transform: rotate(-25deg) scaleY(0.9); } 100% { transform: rotate(-5deg) scaleY(1.1); } }
+  @keyframes flapRight { 0% { transform: rotate(25deg) scaleY(0.9); } 100% { transform: rotate(5deg) scaleY(1.1); } }
+  .logo-text { font-weight: 700; font-size: 1.25rem; letter-spacing: -0.03em; }
+  .logo-text span { color: transparent; background: linear-gradient(to right, var(--fire-glow), #fff); -webkit-background-clip: text; background-clip: text; }
+  .header-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .nav-tabs { display: flex; gap: 4px; background: var(--surface); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .nav-tab { background: none; border: none; color: var(--muted); font-family: var(--font-head); font-size: 0.82rem; font-weight: 600; padding: 7px 14px; cursor: pointer; border-radius: 6px; transition: all 0.2s; white-space: nowrap; }
+  .nav-tab.active { background: var(--surface2); color: var(--fire-glow); border: 1px solid rgba(255,87,34,0.2); }
+  .lang-panel { display: flex; gap: 4px; background: var(--surface); padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+  .lang-btn { background: none; border: none; color: var(--muted); font-family: var(--font-mono); font-size: 0.75rem; padding: 6px 10px; cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+  .lang-btn.active { background: var(--surface2); color: var(--fire-glow); border: 1px solid rgba(255,87,34,0.2); }
+
+  /* PAGES */
+  .page { display: none; flex: 1; flex-direction: column; }
+  .page.active { display: flex; }
+
+  /* TRENDING */
+  .trending-section { max-width: 720px; margin: 0 auto; padding: 28px 20px 0; width: 100%; }
+  .trending-title { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .trending-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .genre-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+  .genre-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; cursor: pointer; transition: all 0.25s; text-decoration: none; display: block; }
+  .genre-card:hover { border-color: var(--fire); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(255,87,34,0.12); }
+  .genre-thumb { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; background: var(--surface2); }
+  .genre-thumb-placeholder { width: 100%; aspect-ratio: 16/9; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; background: linear-gradient(135deg, var(--surface2), #0d0d0d); }
+  .genre-info { padding: 10px 12px; }
+  .genre-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fire-glow); margin-bottom: 3px; }
+  .genre-track { font-size: 0.85rem; font-weight: 600; color: var(--text); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .genre-artist { font-size: 0.75rem; color: var(--muted); margin-top: 1px; }
+
+  /* CHAT */
+  .chat-container { max-width: 720px; margin: 0 auto; padding: 20px 20px 190px; width: 100%; flex: 1; display: flex; flex-direction: column; }
+  .messages { display: flex; flex-direction: column; gap: 20px; }
+  .msg { display: flex; gap: 14px; max-width: 85%; animation: slideUp 0.4s cubic-bezier(0.16,1,0.3,1); }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+  .msg.bot { align-self: flex-start; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; border: 1px solid var(--border); }
+  .msg.bot .avatar { background: linear-gradient(135deg,#222,#111); box-shadow: 0 0 10px rgba(255,87,34,0.15); border-color: rgba(255,87,34,0.3); }
+  .msg.user .avatar { background: #ffffff10; }
+  .bubble { padding: 14px 20px; border-radius: var(--radius); font-size: 0.98rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+  .msg.bot .bubble { background: var(--surface); border: 1px solid var(--border); border-top-left-radius: 4px; color: #e0e0e0; }
+  .msg.user .bubble { background: linear-gradient(135deg, var(--fire), #d84315); color: #fff; border-top-right-radius: 4px; box-shadow: 0 4px 12px rgba(255,87,34,0.2); }
+
+  /* ANALYSIS CARD */
+  .analysis-report { margin-top: 12px; background: rgba(255,255,255,0.01); border: 1px solid rgba(255,87,34,0.2); border-radius: 16px; overflow: hidden; }
+  .report-header { background: linear-gradient(135deg, rgba(255,87,34,0.12), rgba(255,145,0,0.06)); padding: 14px 18px; border-bottom: 1px solid rgba(255,87,34,0.15); display: flex; align-items: center; gap: 10px; }
+  .report-title { font-weight: 700; font-size: 1rem; color: var(--fire-glow); letter-spacing: -0.02em; margin: 0; border: none; padding: 0; }
+  .mood-meta { padding: 12px 14px 8px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .mood-tag { display: inline-flex; align-items: baseline; gap: 5px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 5px 11px; }
+  .mood-tag-label { color: var(--muted); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; }
+  .mood-tag-val { color: var(--text); font-weight: 600; font-size: 0.8rem; }
+  .tracks-header { padding: 6px 14px 8px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .tracks-header::after { content:''; flex:1; height:1px; background: var(--border); }
+  .music-card-list { padding: 0 10px 12px; display: flex; flex-direction: column; gap: 5px; }
+  .music-track { display: flex; align-items: center; gap: 0; background: rgba(255,255,255,0.025); border: 1px solid rgba(255,255,255,0.05); border-radius: 10px; text-decoration: none; color: #fff; transition: all 0.22s; overflow: hidden; }
+  .music-track:hover { background: rgba(255,87,34,0.07); border-color: rgba(255,87,34,0.35); transform: translateX(3px); box-shadow: 0 4px 16px rgba(255,87,34,0.1); }
+  .track-thumb-wrap { position: relative; flex-shrink: 0; width: 88px; height: 56px; }
+  .track-thumb { width: 88px; height: 56px; object-fit: cover; display: block; }
+  .track-thumb-placeholder { width: 88px; height: 56px; background: linear-gradient(135deg,#1a1a1a,#0d0d0d); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0; }
+  .track-num-badge { position: absolute; bottom: 3px; right: 3px; min-width: 18px; height: 18px; background: rgba(0,0,0,0.78); border-radius: 4px; font-size: 0.6rem; font-weight: 700; display: flex; align-items: center; justify-content: center; color: #fff; padding: 0 4px; backdrop-filter: blur(4px); }
+  .track-thumb-wrap { position: relative; flex-shrink: 0; }
+  .track-info { flex: 1; min-width: 0; padding: 0 12px; }
+  .track-title { font-weight: 600; font-size: 0.87rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #f0f0f0; letter-spacing: -0.01em; }
+  .track-artist { font-size: 0.72rem; color: var(--muted); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .track-link-icon { flex-shrink: 0; display: flex; align-items: center; gap: 5px; font-family: var(--font-mono); font-size: 0.65rem; font-weight: 700; background: rgba(255,0,0,0.1); border-left: 1px solid rgba(255,255,255,0.05); color: #ff5555; padding: 0 14px; height: 56px; white-space: nowrap; transition: background 0.2s; }
+  .music-track:hover .track-link-icon { background: rgba(255,0,0,0.2); }
+
+  /* INFO CHAT RICH CARDS */
+  .info-rich { margin-top: 4px; }
+  .info-section { margin-bottom: 14px; }
+  .info-section-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--fire-glow); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .info-section-title::after { content:''; flex:1; height:1px; background: rgba(255,87,34,0.15); }
+  .info-fact-row { display: flex; gap: 6px; margin-bottom: 5px; align-items: flex-start; }
+  .info-fact-key { font-size: 0.78rem; color: var(--muted); min-width: 90px; flex-shrink: 0; }
+  .info-fact-val { font-size: 0.85rem; color: var(--text); font-weight: 500; }
+  .info-album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-top: 6px; }
+  .info-album-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 0.82rem; }
+  .info-album-name { font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .info-album-year { font-size: 0.72rem; color: var(--muted); }
+  .info-tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .info-tag { background: rgba(255,87,34,0.08); border: 1px solid rgba(255,87,34,0.2); color: var(--fire-glow); padding: 4px 10px; border-radius: 20px; font-size: 0.76rem; }
+  .info-prose { font-size: 0.9rem; color: #d0d0d0; line-height: 1.65; }
+  .info-stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 8px 0; }
+  .info-stat { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; text-align: center; }
+  .info-stat-num { font-size: 1.1rem; font-weight: 700; color: var(--fire-glow); }
+  .info-stat-lbl { font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+
+  /* TYPING */
+  .typing-loader { display: flex; align-items: center; gap: 4px; padding: 6px 4px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--muted); animation: wave 1.2s infinite ease-in-out; }
+  .dot:nth-child(2) { animation-delay: 0.15s; } .dot:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes wave { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+  /* CONTROL PANEL */
+  .control-panel { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(6,6,6,0.93); backdrop-filter: blur(20px); border-top: 1px solid var(--border); padding: 14px 20px 18px; z-index: 99; }
+  .quick-actions { max-width: 720px; margin: 0 auto 10px; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .quick-actions::-webkit-scrollbar { display: none; }
+  .recommend-chip { background: rgba(255,87,34,0.1); border: 1px solid rgba(255,87,34,0.3); color: var(--fire-glow); padding: 9px 18px; border-radius: 20px; font-size: 0.86rem; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.3s; display: flex; align-items: center; gap: 6px; }
+  .recommend-chip:hover:not(:disabled) { background: var(--fire); color: #fff; box-shadow: 0 0 14px rgba(255,87,34,0.4); transform: translateY(-1px); }
+  .recommend-chip:disabled { background: #111; border-color: #222; color: #555; cursor: not-allowed; opacity: 0.6; font-weight: 400; }
+  .input-box { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  .text-box { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); color: var(--text); font-family: var(--font-head); font-size: 1rem; padding: 13px 16px; resize: none; outline: none; min-height: 50px; max-height: 140px; line-height: 1.5; transition: border-color 0.2s; }
+  .text-box:focus { border-color: var(--fire); }
+  .action-btn { width: 50px; height: 50px; border-radius: var(--radius); background: linear-gradient(135deg, var(--fire), var(--fire-glow)); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #fff; transition: transform 0.2s; flex-shrink: 0; }
+  .action-btn:hover { transform: scale(1.04); } .action-btn:active { transform: scale(0.96); }
+  .action-btn:disabled { background: var(--surface2); color: var(--muted); cursor: not-allowed; }
+  .action-btn svg { width: 20px; height: 20px; }
+  .clear-session { background: none; border: 1px solid var(--border); color: var(--muted); padding: 5px 12px; border-radius: 20px; font-size: 0.78rem; cursor: pointer; margin: 8px auto 0; display: block; font-family: var(--font-mono); transition: all 0.2s; }
+  .clear-session:hover { border-color: var(--fire); color: #fff; }
+
+  /* GENRE MODAL */
+  .genre-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(8px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 20px; }
+  .genre-modal-overlay.open { display: flex; }
+  .genre-modal { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; max-width: 520px; width: 100%; max-height: 82vh; overflow-y: auto; position: relative; animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1); }
+  .genre-modal-header { padding: 20px 20px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 2; display: flex; align-items: center; justify-content: space-between; }
+  .genre-modal-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .genre-modal-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fire-glow); }
+  .genre-modal-close { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+  .genre-modal-close:hover { border-color: var(--fire); color: #fff; }
+  .genre-modal-list { padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .genre-modal-loading { padding: 40px; text-align: center; color: var(--muted); font-size: 0.9rem; }
+  .modal-track { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); padding: 10px 13px; border-radius: 10px; text-decoration: none; color: #fff; transition: all 0.2s; cursor: pointer; }
+  .modal-track:hover { background: rgba(255,87,34,0.1); border-color: var(--fire); transform: translateX(3px); }
+  .modal-track-num { width: 24px; height: 24px; background: var(--surface2); border: 1px solid var(--border); border-radius: 50%; font-size: 0.7rem; font-weight: 700; color: var(--fire-glow); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .modal-track-thumb { width: 64px; height: 42px; border-radius: 7px; object-fit: cover; flex-shrink: 0; background: var(--surface2); }
+  .modal-track-thumb-ph { width: 64px; height: 42px; border-radius: 7px; background: linear-gradient(135deg,#1e1e1e,#0d0d0d); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; flex-shrink: 0; border: 1px solid var(--border); }
+  .modal-track-info { flex: 1; min-width: 0; }
+  .modal-track-title { font-size: 0.88rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .modal-track-artist { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+  .modal-yt-btn { background: rgba(255,0,0,0.12); border: 1px solid rgba(255,0,0,0.3); color: #ff4444; padding: 5px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; flex-shrink: 0; }
+
+  /* PAGE 2: INFO */
+  .info-welcome { max-width: 720px; margin: 0 auto; padding: 36px 20px 0; width: 100%; }
+  .info-welcome-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px 22px; margin-bottom: 16px; }
+  .info-welcome-icon { font-size: 2.2rem; margin-bottom: 10px; }
+  .info-welcome-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 6px; }
+  .info-welcome-sub { color: var(--muted); font-size: 0.88rem; line-height: 1.55; }
+  .info-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+  .info-chip { background: rgba(255,87,34,0.08); border: 1px solid rgba(255,87,34,0.2); color: var(--fire-glow); padding: 7px 13px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+  .info-chip:hover { background: rgba(255,87,34,0.16); border-color: var(--fire); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-area">
+    <div class="fire-wings"><div class="wing left"></div><div class="wing right"></div></div>
+    <div class="logo-text">MoodTune<span>AI</span></div>
+  </div>
+  <div class="header-right">
+    <div class="nav-tabs">
+      <button class="nav-tab active" data-page="page-mood">🎵 Mood Chat</button>
+      <button class="nav-tab" data-page="page-info">🎤 Music Info</button>
+    </div>
+    <div class="lang-panel" id="lang-panel">
+      <button class="lang-btn active" data-lang="uz">UZ</button>
+      <button class="lang-btn" data-lang="ru">RU</button>
+      <button class="lang-btn" data-lang="en">EN</button>
+      <button class="lang-btn" 
+    </div>
+  </div>
+</header>
+
+<!-- PAGE 1: MOOD CHAT -->
+<div class="page active" id="page-mood">
+  <div class="trending-section" id="trending-section">
+    <div class="trending-title">🔥 Trending hozir — bosing va tinglang</div>
+    <div class="genre-grid" id="genre-grid"></div>
+  </div>
+  <div class="chat-container">
+    <div class="messages" id="chat-stream"></div>
+  </div>
+  <div class="control-panel">
+    <div class="quick-actions">
+      <button class="recommend-chip" id="quick-rec-btn" disabled>🔒 Kamida 2 ta javob bering</button>
+    </div>
+    <div class="input-box">
+      <textarea class="text-box" id="user-input" rows="1" placeholder="Javobingizni erkin yozing..."></textarea>
+      <button class="action-btn" id="send-trigger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <button class="clear-session" id="reset-trigger" data-uz="Suhbatni yangilash 🔄" data-ru="Обновить чат 🔄" data-en="Reset Chat 🔄">Suhbatni yangilash 🔄</button>
+  </div>
+</div>
+
+<!-- PAGE 2: MUSIC INFO -->
+<div class="page" id="page-info">
+  <div class="info-welcome" id="info-welcome">
+    <div class="info-welcome-card">
+      <div class="info-welcome-icon">🎤</div>
+      <div class="info-welcome-title" id="info-welcome-title">Music Info Assistant</div>
+      <div class="info-welcome-sub" id="info-welcome-sub">Artist, albom yoki qo'shiq haqida biror narsa so'rang.</div>
+      <div class="info-chips" id="info-chips">
+        <span class="info-chip" onclick="infoAskChip('The Weeknd')">The Weeknd</span>
+        <span class="info-chip" onclick="infoAskChip('Eminem')">Eminem</span>
+        <span class="info-chip" onclick="infoAskChip('Billie Eilish')">Billie Eilish</span>
+        <span class="info-chip" onclick="infoAskChip('Drake')">Drake</span>
+        <span class="info-chip" onclick="infoAskChip('Скриптонит')">Скриптонит</span>
+        <span class="info-chip" onclick="infoAskChip('BAKR')">BAKR</span>
+      </div>
+    </div>
+  </div>
+  <div class="chat-container">
+    <div class="messages" id="info-stream"></div>
+  </div>
+  <div class="control-panel">
+    <div class="input-box">
+      <textarea class="text-box" id="info-input" rows="1" placeholder="Artist, albom yoki qo'shiq haqida so'rang..." id="info-input-field"></textarea>
+      <button class="action-btn" id="info-send">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+    <button class="clear-session" id="info-reset" data-uz="Suhbatni yangilash 🔄" data-ru="Обновить чат 🔄" data-en="Reset Chat 🔄">Suhbatni yangilash 🔄</button>
+  </div>
+</div>
+
+<!-- GENRE SONGS MODAL -->
+<div class="genre-modal-overlay" id="genre-modal-overlay">
+  <div class="genre-modal">
+    <div class="genre-modal-header">
+      <div>
+        <div class="genre-modal-label" id="modal-genre-label"></div>
+        <div class="genre-modal-title" id="modal-genre-title"></div>
+      </div>
+      <button class="genre-modal-close" id="genre-modal-close">✕</button>
+    </div>
+    <div class="genre-modal-list" id="genre-modal-list">
+      <div class="genre-modal-loading">⏳ Qo'shiqlar yuklanmoqda...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── TRENDING GENRE DATA ──────────────────────────────────────────────────────
+const GENRES = [
+  { label:"Pop / R&B", icon:"🎶", track:"Blinding Lights", artist:"The Weeknd", ytId:"4NRXx6U8ABQ", search:"The Weeknd Blinding Lights Official" },
+  { label:"Rap / Hip-Hop", icon:"🎤", track:"God's Plan", artist:"Drake", ytId:"xpVfcZ0ZcFM", search:"Drake Gods Plan Official Music Video" },
+  { label:"Classic", icon:"🎻", track:"Bohemian Rhapsody", artist:"Queen", ytId:"fJ9rUzIMcZQ", search:"Queen Bohemian Rhapsody Official Video" },
+  { label:"Nostalgic", icon:"🌅", track:"Hotel California", artist:"Eagles", ytId:"BciS5krYL80", search:"Eagles Hotel California Official" }
+];
+
+// ── GENRE MODAL ───────────────────────────────────────────────────────────────
+const GENRE_SONGS = {
+  "Pop / R&B": [
+    {title:"Blinding Lights", artist:"The Weeknd", ytId:"4NRXx6U8ABQ"},
+    {title:"As It Was", artist:"Harry Styles", ytId:"H5v3kku4y6Q"},
+    {title:"Watermelon Sugar", artist:"Harry Styles", ytId:"E07s5ZYygMg"},
+    {title:"Anti-Hero", artist:"Taylor Swift", ytId:"b1kbLwvqugk"},
+    {title:"Levitating", artist:"Dua Lipa", ytId:"TUVcZfQe-Kw"},
+    {title:"Save Your Tears", artist:"The Weeknd", ytId:"XXYlFuWEuKI"},
+    {title:"Peaches", artist:"Justin Bieber", ytId:"tQ0yjYUFKAE"},
+    {title:"Stay", artist:"The Kid LAROI & Justin Bieber", ytId:"kTJczUoc26U"},
+    {title:"Positions", artist:"Ariana Grande", ytId:"tcYodQoapMg"},
+    {title:"Good 4 U", artist:"Olivia Rodrigo", ytId:"gNi_6U5Pm_o"},
+    {title:"drivers license", artist:"Olivia Rodrigo", ytId:"ZmDBbnmKpqQ"},
+    {title:"Love Story (Taylor's Version)", artist:"Taylor Swift", ytId:"8xg3vE8Ie_E"},
+    {title:"Circles", artist:"Post Malone", ytId:"wXhTHyIgQ_U"},
+    {title:"Starboy", artist:"The Weeknd", ytId:"34Na4j8AVgA"},
+    {title:"Shape of You", artist:"Ed Sheeran", ytId:"JGwWNGJdvx8"}
+  ],
+  "Rap / Hip-Hop": [
+    {title:"God's Plan", artist:"Drake", ytId:"xpVfcZ0ZcFM"},
+    {title:"HUMBLE.", artist:"Kendrick Lamar", ytId:"tvTRZJ-4EyI"},
+    {title:"Rockstar", artist:"Post Malone ft. 21 Savage", ytId:"UceaB4D0jpo"},
+    {title:"Sicko Mode", artist:"Travis Scott", ytId:"6ONRf7h3Mdk"},
+    {title:"Congratulations", artist:"Post Malone", ytId:"SC4xMk98Pdc"},
+    {title:"Lucid Dreams", artist:"Juice WRLD", ytId:"mzB1VGEGcSU"},
+    {title:"XO Tour Llif3", artist:"Lil Uzi Vert", ytId:"WrsFXgrun6g"},
+    {title:"Old Town Road", artist:"Lil Nas X", ytId:"w2Ov5jzm3j8"},
+    {title:"Wow.", artist:"Post Malone", ytId:"SsodjxbHdcE"},
+    {title:"Hotline Bling", artist:"Drake", ytId:"uxpDa-c-4Mc"},
+    {title:"Money In The Grave", artist:"Drake ft. Rick Ross", ytId:"RjWGetUKqzM"},
+    {title:"Eminem - Rap God", artist:"Eminem", ytId:"XbGs_qK2PQA"},
+    {title:"Fefe", artist:"6ix9ine ft. Nicki Minaj", ytId:"qNkR6y_kBjg"},
+    {title:"Big Rings", artist:"Drake & Future", ytId:"7GaRr2GGzao"},
+    {title:"MIDDLE CHILD", artist:"J. Cole", ytId:"MaT4Jk77af8"}
+  ],
+  "Classic": [
+    {title:"Bohemian Rhapsody", artist:"Queen", ytId:"fJ9rUzIMcZQ"},
+    {title:"Don't Stop Me Now", artist:"Queen", ytId:"HgzGwKwLmgM"},
+    {title:"Hotel California", artist:"Eagles", ytId:"BciS5krYL80"},
+    {title:"Stairway to Heaven", artist:"Led Zeppelin", ytId:"QkF3oxziUI4"},
+    {title:"Sweet Child O' Mine", artist:"Guns N' Roses", ytId:"1w7OgIMMRc4"},
+    {title:"November Rain", artist:"Guns N' Roses", ytId:"8SbUC-UaAxE"},
+    {title:"Sultans of Swing", artist:"Dire Straits", ytId:"0fAQhSRLQnM"},
+    {title:"Eye of the Tiger", artist:"Survivor", ytId:"btPJPFnesV4"},
+    {title:"Livin' on a Prayer", artist:"Bon Jovi", ytId:"lDK9QqIzhwk"},
+    {title:"Jump", artist:"Van Halen", ytId:"SwYN7mTi6HM"},
+    {title:"Should I Stay or Should I Go", artist:"The Clash", ytId:"BN1WwnEDWAM"},
+    {title:"Purple Rain", artist:"Prince", ytId:"TvnYmWpD_T8"},
+    {title:"With or Without You", artist:"U2", ytId:"ujNeHIo9dAU"},
+    {title:"We Will Rock You", artist:"Queen", ytId:"-tJYN-eG1zk"},
+    {title:"Dream On", artist:"Aerosmith", ytId:"89dGtCN_cPg"}
+  ],
+  "Nostalgic": [
+    {title:"Hotel California", artist:"Eagles", ytId:"BciS5krYL80"},
+    {title:"Take On Me", artist:"a-ha", ytId:"djV11Xbc914"},
+    {title:"Africa", artist:"Toto", ytId:"FTQbiNvZqaY"},
+    {title:"Don't You (Forget About Me)", artist:"Simple Minds", ytId:"CdqoNKCCt7A"},
+    {title:"Every Breath You Take", artist:"The Police", ytId:"OMOGaugKpzs"},
+    {title:"Come On Eileen", artist:"Dexys Midnight Runners", ytId:"qpbIaE5Bhdk"},
+    {title:"99 Luftballons", artist:"Nena", ytId:"La4Dcd1aUcI"},
+    {title:"Girls Just Want to Have Fun", artist:"Cyndi Lauper", ytId:"PIb6AZdTr-A"},
+    {title:"Wake Me Up Before You Go-Go", artist:"Wham!", ytId:"pITmCFYkWN8"},
+    {title:"Kokomo", artist:"The Beach Boys", ytId:"pAwR6C82TCI"},
+    {title:"Walking on Sunshine", artist:"Katrina & The Waves", ytId:"iPUmE-tne5U"},
+    {title:"867-5309/Jenny", artist:"Tommy Tutone", ytId:"6dx_8mHxMI0"},
+    {title:"Sweet Home Alabama", artist:"Lynyrd Skynyrd", ytId:"ye5BuYf8q4o"},
+    {title:"Piano Man", artist:"Billy Joel", ytId:"gxEPV4kolz0"},
+    {title:"Summer of '69", artist:"Bryan Adams", ytId:"9f06QZCVUHg"}
+  ]
+};
+
+function openGenreModal(genre) {
+  const songs = GENRE_SONGS[genre.label] || [];
+  const overlay = document.getElementById("genre-modal-overlay");
+  const list = document.getElementById("genre-modal-list");
+  const label = document.getElementById("modal-genre-label");
+  const title = document.getElementById("modal-genre-title");
+
+  label.textContent = genre.label;
+  title.innerHTML = `${genre.icon} Top ${songs.length} Qo'shiqlar`;
+  list.innerHTML = "";
+
+  songs.forEach((s, i) => {
+    const thumb = `https://img.youtube.com/vi/${s.ytId}/mqdefault.jpg`;
+    const ytUrl = `https://www.youtube.com/watch?v=${s.ytId}`;
+    const el = document.createElement("a");
+    el.className = "modal-track";
+    el.href = ytUrl;
+    el.target = "_blank";
+    el.rel = "noopener noreferrer";
+    el.innerHTML = `
+      <div class="modal-track-num">${i+1}</div>
+      <img class="modal-track-thumb" src="${thumb}" alt="${s.title}"
+        onerror="this.outerHTML='<div class=modal-track-thumb-ph>🎵</div>'">
+      <div class="modal-track-info">
+        <div class="modal-track-title">${s.title}</div>
+        <div class="modal-track-artist">${s.artist}</div>
+      </div>
+      <span class="modal-yt-btn">▶ YouTube</span>`;
+    list.appendChild(el);
+  });
+
+  overlay.classList.add("open");
+  document.body.style.overflow = "hidden";
+}
+
+document.getElementById("genre-modal-close").addEventListener("click", () => {
+  document.getElementById("genre-modal-overlay").classList.remove("open");
+  document.body.style.overflow = "";
+});
+document.getElementById("genre-modal-overlay").addEventListener("click", e => {
+  if (e.target === e.currentTarget) {
+    e.currentTarget.classList.remove("open");
+    document.body.style.overflow = "";
+  }
+});
+
+function buildGrid() {
+  const grid = document.getElementById("genre-grid");
+  GENRES.forEach(g => {
+    const thumb = `https://img.youtube.com/vi/${g.ytId}/mqdefault.jpg`;
+    const card = document.createElement("div");
+    card.className = "genre-card";
+    card.innerHTML = `
+      <img class="genre-thumb" src="${thumb}" alt="${g.track}" onerror="this.outerHTML='<div class=genre-thumb-placeholder>${g.icon}</div>'">
+      <div class="genre-info">
+        <div class="genre-label">${g.label}</div>
+        <div class="genre-track">${g.track}</div>
+        <div class="genre-artist">${g.artist}</div>
+      </div>`;
+    card.addEventListener("click", () => openGenreModal(g));
+    grid.appendChild(card);
+  });
+}
+
+// ── PAGE NAV ─────────────────────────────────────────────────────────────────
+let activePage = "page-mood";
+document.querySelectorAll(".nav-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+    tab.classList.add("active");
+    activePage = tab.dataset.page;
+    document.getElementById(activePage).classList.add("active");
+  });
+});
+
+// ── LANG ─────────────────────────────────────────────────────────────────────
+let currentLang = "uz";
+const PLACEHOLDERS = {
+  uz: "Javobingizni erkin yozing...",
+  ru: "Пишите свободно...",
+  en: "Write freely..."
+};
+const GREETINGS = {
+  uz: "Hozir ichingizdagi eng yaqin hissiyot qaysi?",
+  ru: "Какая эмоция сейчас вам ближе всего?",
+  en: "What emotion is closest to you right now?"
+};
+const REC_LABELS = {
+  uz: { locked: "🔒 Yana {n} ta javob bering", ready: "✨ Musiqa tavsiya qil" },
+  ru: { locked: "🔒 Нужно ещё {n} ответа",     ready: "✨ Посоветуй музыку" },
+  en: { locked: "🔒 {n} more answer needed",    ready: "✨ Recommend Music" }
+};
+const REC_TRIGGERS = {
+  uz: "Musiqa tavsiya qil",
+  ru: "Посоветуй музыку",
+  en: "Recommend music"
+};
+// UI label texts
+const UI_TEXTS = {
+  uz: {
+    trending:        "🔥 Trending hozir — bosing va tinglang",
+    infoPlaceholder: "Artist, albom yoki qo'shiq haqida so'rang...",
+    infoTitle:       "Music Info Assistant",
+    infoSub:         "Artist, albom yoki qo'shiq haqida so'rang."
+  },
+  ru: {
+    trending:        "🔥 Сейчас в тренде — нажмите и слушайте",
+    infoPlaceholder: "Введите имя артиста, альбома или песни...",
+    infoTitle:       "Музыкальный Ассистент",
+    infoSub:         "Спросите об артисте, альбоме или песне."
+  },
+  en: {
+    trending:        "🔥 Trending Now — click and listen",
+    infoPlaceholder: "Ask about an artist, album or song...",
+    infoTitle:       "Music Info Assistant",
+    infoSub:         "Ask about any artist, album or song."
+  }
+};
+
+function applyLang(lang) {
+  currentLang = lang;
+
+  // Mood chat
+  document.getElementById("user-input").placeholder = PLACEHOLDERS[lang];
+  updateRecBtn();
+
+  // Music Info page
+  const infoInput2 = document.getElementById("info-input");
+  if (infoInput2) infoInput2.placeholder = UI_TEXTS[lang].infoPlaceholder;
+
+  const welcomeTitle = document.getElementById("info-welcome-title");
+  if (welcomeTitle) welcomeTitle.textContent = UI_TEXTS[lang].infoTitle;
+
+  const welcomeSub = document.getElementById("info-welcome-sub");
+  if (welcomeSub) welcomeSub.textContent = UI_TEXTS[lang].infoSub;
+
+  // Trending title
+  const trendTitle = document.querySelector(".trending-title");
+  if (trendTitle) trendTitle.textContent = UI_TEXTS[lang].trending;
+
+  // Reset buttons
+  document.querySelectorAll("[data-uz]").forEach(el => {
+    el.textContent = el.dataset[lang] || el.dataset.uz;
+  });
+
+  // Restart mood chat in new language
+  initMoodSession();
+}
+
+document.getElementById("lang-panel").addEventListener("click", e => {
+  const btn = e.target.closest(".lang-btn");
+  if (!btn || btn.classList.contains("active")) return;
+  document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  applyLang(btn.dataset.lang);
+});
+
+// ── MOOD CHAT ─────────────────────────────────────────────────────────────────
+let moodHistory = [];
+let moodMsgCount = 0;
+const moodStream = document.getElementById("chat-stream");
+const userInput  = document.getElementById("user-input");
+const sendBtn    = document.getElementById("send-trigger");
+const recBtn     = document.getElementById("quick-rec-btn");
+
+const MOOD_SYSTEM = `SEN AI MUSIC RECOMMENDATION ASSISTANT'SAN.
+Foydalanuvchining hissiy holati va musiqa maqsadini 3 savol bilan aniqlaysan va keyin 15 ta HIT qo'shiq tavsiya qilasan.
+
+SAVOLLAR TARTIBI:
+1. "Hozir ichingizdagi eng yaqin hissiyot qaysi?"
+2. "Shu holatda musiqa sizga nima uchun kerak?"
+3. "Energiya beradigan musiqami yoki tinchlantiradiganmi?"
+
+3-savolga javob olgandan yoki "Musiqa tavsiya qil" buyrug'i kelganda, FAQAT quyidagi formatda javob ber (boshqa hech narsa qo'shma):
+
+[REPORT_START]
+### Kayfiyat Tahlili
+**Mood:** ...
+**Musiqa uslubi:** ...
+**Janrlar:** ...
+
+[TRACKS_START]
+[
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"},
+  {"title":"Artist - Track","search":"Artist Track official audio","ytId":"REAL_YT_ID"}
+]
+[TRACKS_END]
+[REPORT_END]
+
+JUDA MUHIM QOIDALAR:
+1. Har doim AYNAN 15 ta track ber, kamroq bo'lmasin!
+2. ytId — bu YouTube video URL dagi 11 belgili kod. Masalan: https://youtube.com/watch?v=dQw4w9WgXcQ => ytId = "dQw4w9WgXcQ"
+3. Faqat 100% ishonchli ytId yoz. Bilmasang "SEARCH" yoz — ilovamiz avtomatik qidiradi.
+4. Faqat dunyo miqyosida mashhur hitlar (millionlar tinglagan).
+5. JSON formatini buzma — [] ichida 15 ta {} bo'lsin.
+
+Mashhur ytId misollar: Blinding Lights=4NRXx6U8ABQ, Shape of You=JGwWNGJdvx8, Bohemian Rhapsody=fJ9rUzIMcZQ, Despacito=ktvTqknDobU, Waka Waka=pRpeEdMmmQ0, God's Plan=xpVfcZ0ZcFM, Uptown Funk=OPf0YbXqDm0, Happy=y6Sxv-sUYtM, Roar=CevxZvSJLk8, Rolling in the Deep=rYEDA3JcQqw`;
+
+function updateRecBtn() {
+  const lbl = REC_LABELS[currentLang];
+  if (moodMsgCount >= 2) {
+    recBtn.disabled = false;
+    recBtn.textContent = lbl.ready;
+  } else {
+    recBtn.disabled = true;
+    recBtn.textContent = lbl.locked.replace("{n}", 2 - moodMsgCount);
+  }
+}
+
+function addBubble(stream, sender, content, isHtml = false) {
+  const wrap = document.createElement("div");
+  wrap.className = `msg ${sender}`;
+  const av = document.createElement("div"); av.className = "avatar";
+  av.textContent = sender === "bot" ? (stream === moodStream ? "🔥" : "🎤") : "👤";
+  const bub = document.createElement("div"); bub.className = "bubble";
+  if (isHtml) bub.innerHTML = content; else bub.textContent = content;
+  wrap.appendChild(av); wrap.appendChild(bub);
+  stream.appendChild(wrap);
+  stream.scrollTop = stream.scrollHeight;
+}
+
+function showTyping(stream, id) {
+  const w = document.createElement("div"); w.className = "msg bot"; w.id = id;
+  const icon = stream === moodStream ? "🔥" : "🎤";
+  w.innerHTML = `<div class="avatar">${icon}</div><div class="bubble" style="padding:10px 16px"><div class="typing-loader"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>`;
+  stream.appendChild(w); stream.scrollTop = stream.scrollHeight;
+}
+function hideTyping(id) { const el = document.getElementById(id); if (el) el.remove(); }
+
+// ── CONFIG — backend URL ni shu yerda o'zgartiring ──────────────────────────
+// Render.com ga deploy qilgandan keyin shu URL ni yangilang:
+const BACKEND_URL = "https://moodtune-backend.onrender.com";
+// Lokal test uchun: const BACKEND_URL = "http://localhost:3000";
+
+// ── CLAUDE API ──────────────────────────────────────────────────────────────
+async function claudeCall(history, system, maxTok = 2000) {
+  const msgs = history.map(m => ({
+    role: m.role === "assistant" ? "assistant" : "user",
+    content: m.content
+  }));
+
+  const res = await fetch(BACKEND_URL + "/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      system: system,
+      messages: msgs,
+      max_tokens: maxTok
+    })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error("Server xatosi " + res.status + ": " + (err.error || res.statusText));
+  }
+
+  const data = await res.json();
+  if (data.error) {
+    throw new Error("Claude xatolik: " + (data.error.message || JSON.stringify(data.error)));
+  }
+  if (!data.content || !data.content[0]) throw new Error("Claude: javob kelmadi.");
+  return data.content[0].text;
+}
+
+function parseMoodReply(raw) {
+  if (!raw.includes("[REPORT_START]")) {
+    addBubble(moodStream, "bot", raw);
+    sendBtn.disabled = false;
+    return;
+  }
+  try {
+    const seg = raw.split("[REPORT_START]")[1].split("[REPORT_END]")[0];
+    let analysis = seg, tracks = null;
+    if (seg.includes("[TRACKS_START]")) {
+      const parts = seg.split("[TRACKS_START]");
+      analysis = parts[0];
+      let jsonStr = parts[1].split("[TRACKS_END]")[0].trim();
+      jsonStr = jsonStr.replace(/```json|```/g, "").trim();
+      tracks = JSON.parse(jsonStr);
+    }
+
+    // Parse analysis fields from markdown-like text
+    function extractField(text, label) {
+      const re = new RegExp("\\*\\*" + label + ":\\*\\*\\s*(.+)", "i");
+      const m = text.match(re);
+      return m ? m[1].trim() : null;
+    }
+    const mood     = extractField(analysis, "Mood");
+    const style    = extractField(analysis, "Musiqa uslubi");
+    const genres   = extractField(analysis, "Janrlar");
+
+    const listId = "tl-" + Date.now();
+
+    // Build mood meta tags
+    let metaHtml = `<div class="mood-meta">`;
+    if (mood)   metaHtml += `<span class="mood-tag"><span class="mood-tag-label">😌 Kayfiyat</span><span class="mood-tag-val">${mood}</span></span>`;
+    if (style)  metaHtml += `<span class="mood-tag"><span class="mood-tag-label">🎨 Uslub</span><span class="mood-tag-val">${style}</span></span>`;
+    if (genres) metaHtml += `<span class="mood-tag"><span class="mood-tag-label">🎵 Janr</span><span class="mood-tag-val">${genres}</span></span>`;
+    metaHtml += `</div>`;
+
+    const html = `<div class="analysis-report">
+      <div class="report-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--fire-glow);flex-shrink:0"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+        <span class="report-title">Mood Analysis & Music Picks</span>
+      </div>
+      ${metaHtml}
+      <div class="tracks-header">🎧 Tavsiya etiladigan qo'shiqlar</div>
+      <div class="music-card-list" id="${listId}"></div>
+    </div>`;
+    addBubble(moodStream, "bot", html, true);
+
+    if (tracks && Array.isArray(tracks)) {
+      const container = document.getElementById(listId);
+      tracks.forEach((t, i) => {
+        const hasRealId = t.ytId && t.ytId !== "SEARCH" && t.ytId.length === 11;
+        const ytUrl = hasRealId
+          ? `https://www.youtube.com/watch?v=${t.ytId}`
+          : `https://www.youtube.com/results?search_query=${encodeURIComponent(t.search || t.title)}`;
+
+        // Parse "Artist - Song" format
+        const parts = t.title ? t.title.split(" - ") : [];
+        const artistName = parts.length > 1 ? parts[0].trim() : "";
+        const songName   = parts.length > 1 ? parts.slice(1).join(" - ").trim() : t.title;
+
+        const card = document.createElement("a");
+        card.className = "music-track";
+        card.href = ytUrl;
+        card.target = "_blank";
+        card.rel = "noopener noreferrer";
+
+        // Thumbnail with real image; on error fallback to placeholder
+        const thumbId = "th-" + i + "-" + Date.now();
+        card.innerHTML = `
+          <div class="track-thumb-wrap" style="width:88px;height:56px;flex-shrink:0;position:relative">
+            ${hasRealId
+              ? `<img id="${thumbId}" src="https://img.youtube.com/vi/${t.ytId}/mqdefault.jpg"
+                   style="width:88px;height:56px;object-fit:cover;display:block"
+                   loading="lazy"
+                   onerror="this.style.display='none';document.getElementById('ph-${thumbId}').style.display='flex'">`
+              : ""}
+            <div id="ph-${thumbId}" style="width:88px;height:56px;background:linear-gradient(135deg,#1a1a1a,#0d0d0d);display:${hasRealId ? 'none' : 'flex'};align-items:center;justify-content:center;font-size:1.5rem">🎵</div>
+            <span class="track-num-badge">${i + 1}</span>
+          </div>
+          <div class="track-info" style="flex:1;min-width:0;padding:0 12px">
+            <div class="track-title" style="font-weight:700;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f0f0f0;letter-spacing:-0.01em">${songName}</div>
+            ${artistName ? `<div class="track-artist" style="font-size:0.72rem;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${artistName}</div>` : ""}
+          </div>
+          <span class="track-link-icon" style="flex-shrink:0;display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:0.65rem;font-weight:700;background:rgba(255,0,0,0.1);border-left:1px solid rgba(255,255,255,0.05);color:#ff5555;padding:0 14px;height:56px;white-space:nowrap">▶ YouTube</span>`;
+        container.appendChild(card);
+      });
+    }
+  } catch(e) {
+    console.error("Parse error:", e, raw);
+    addBubble(moodStream, "bot", raw);
+  }
+  sendBtn.disabled = false;
+}
+
+async function sendMood(custom = null) {
+  const text = custom || userInput.value.trim();
+  if (!text) return;
+  if (!custom) { moodMsgCount++; updateRecBtn(); userInput.value = ""; userInput.style.height = "auto"; }
+  sendBtn.disabled = true;
+  addBubble(moodStream, "user", text);
+  showTyping(moodStream, "mood-typing");
+  moodHistory.push({ role:"user", content: text });
+  try {
+    const langInstruction = currentLang === "ru" ? "ВАЖНО: Отвечай ТОЛЬКО на русском языке!" 
+      : currentLang === "en" ? "IMPORTANT: Reply ONLY in English!"
+      : "MUHIM: FAQAT o'zbek tilida javob ber!";
+    const reply = await claudeCall(moodHistory, MOOD_SYSTEM + "\n\n" + langInstruction);
+    moodHistory.push({ role:"assistant", content: reply });
+    hideTyping("mood-typing");
+    parseMoodReply(reply);
+  } catch(e) {
+    hideTyping("mood-typing");
+    const errMsg = e.message || "Noma'lum xatolik";
+    addBubble(moodStream, "bot", "⚠️ " + errMsg);
+    sendBtn.disabled = false;
+  }
+}
+
+function initMoodSession() {
+  moodStream.innerHTML = "";
+  moodHistory = [];
+  moodMsgCount = 0;
+  sendBtn.disabled = false;
+  updateRecBtn();
+  const greet = GREETINGS[currentLang];
+  addBubble(moodStream, "bot", greet);
+  moodHistory.push({ role:"assistant", content: greet });
+}
+
+sendBtn.addEventListener("click", () => sendMood());
+userInput.addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); sendMood(); } });
+userInput.addEventListener("input", () => { userInput.style.height="auto"; userInput.style.height=Math.min(userInput.scrollHeight,140)+"px"; });
+document.getElementById("reset-trigger").addEventListener("click", initMoodSession);
+recBtn.addEventListener("click", () => { if (moodMsgCount >= 2) sendMood(REC_TRIGGERS[currentLang]); });
+
+// ── LOKAL MUSIQA MA'LUMOTLAR BAZASI (API kerak emas) ─────────────────────────
+const MUSIC_DB = [
+{
+  name: "The Weeknd",
+  aliases: ["the weeknd", "weeknd", "уикенд"],
+  emoji: "🌃",
+  photo: "https://img.youtube.com/vi/4NRXx6U8ABQ/mqdefault.jpg",
+  tagline: "Kanadalik R&B/Pop yulduzi, 'Blinding Lights' ijrochisi",
+  facts: [
+    {key:"Janr", val:"R&B, Pop, Synth-pop"},
+    {key:"Mamlakat", val:"Kanada"},
+    {key:"Faoliyati", val:"2010 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Abel Tesfaye (The Weeknd) - zamonaviy R&B sohasidagi eng katta yulduzlardan biri. Uning 80-yillar sintipopiga yaqin uslubi butun dunyo bo'ylab milliardlab tinglashlarga ega bo'ldi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Beauty Behind the Madness", year:"2015"},{name:"Starboy", year:"2016"},{name:"After Hours", year:"2020"},{name:"Dawn FM", year:"2022"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Blinding Lights",ytId:"4NRXx6U8ABQ"},{title:"Starboy",ytId:"34Na4j8AVgA"},{title:"The Hills",ytId:"yzTuBuRdAyA"},{title:"Can't Feel My Face",ytId:"KEI4qSrkPAs"},{title:"Save Your Tears",ytId:"XXYlFuWEuKI"}]}
+  ],
+  summary: "The Weeknd zamonaviy pop/R&B sahnasidagi eng nufuzli ijrochilardan biri hisoblanadi."
+},
+{
+  name: "Drake",
+  aliases: ["drake", "дрейк"],
+  emoji: "🦉",
+  photo: "https://img.youtube.com/vi/xpVfcZ0ZcFM/mqdefault.jpg",
+  tagline: "Kanadalik rap yulduzi, hip-hop sohasining eng ko'p sotuvchi artistlaridan biri",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, R&B, Rap"},
+    {key:"Mamlakat", val:"Kanada"},
+    {key:"Faoliyati", val:"2006 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Drake zamonaviy hip-hop sanoatining eng muvaffaqiyatli va eng ko'p Billboard rekordlarini o'rnatgan artistlaridan biri. U OVO mehnat tashkiloti orqali boshqa artistlarni ham qo'llab-quvvatlaydi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Take Care", year:"2011"},{name:"Views", year:"2016"},{name:"Scorpion", year:"2018"},{name:"Certified Lover Boy", year:"2021"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"God's Plan",ytId:"xpVfcZ0ZcFM"},{title:"One Dance",ytId:"iHCn3a3YIOU"},{title:"Hotline Bling",ytId:"uxpDa-c-4Mc"},{title:"In My Feelings",ytId:"DRS_PpOrUZ4"},{title:"Started From the Bottom",ytId:"RubczQuh47k"}]}
+  ],
+  summary: "Drake hip-hop sanoatining eng nufuzli va ta'sirli figuralaridan biri."
+},
+{
+  name: "Taylor Swift",
+  aliases: ["taylor swift", "тейлор свифт"],
+  emoji: "🎀",
+  photo: "https://img.youtube.com/vi/nfWlot6h_JM/mqdefault.jpg",
+  tagline: "Amerikalik pop/country yulduzi va eng ko'p mukofotga ega qo'shiqchi sozandalardan biri",
+  facts: [
+    {key:"Janr", val:"Pop, Country, Folk-pop"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"2006 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Taylor Swift country sahnasidan boshlab, keyinchalik pop musiqaning eng yirik yulduziga aylangan. U o'z qo'shiqlarini o'zi yozadi va shaxsiy hayotini ijodida aks ettiradi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"1989", year:"2014"},{name:"Reputation", year:"2017"},{name:"Folklore", year:"2020"},{name:"Midnights", year:"2022"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Shake It Off",ytId:"nfWlot6h_JM"},{title:"Blank Space",ytId:"e-ORhEE9VVg"},{title:"Anti-Hero",ytId:"b1kbLwvqugk"},{title:"Love Story",ytId:"8xg3vE8Ie_E"},{title:"Cruel Summer",ytId:"ic8j13piAhQ"}]}
+  ],
+  summary: "Taylor Swift zamonaviy pop musiqaning eng nufuzli va ta'sirchan ijrochisi hisoblanadi."
+},
+{
+  name: "Ed Sheeran",
+  aliases: ["ed sheeran", "эд ширан"],
+  emoji: "🎸",
+  photo: "https://img.youtube.com/vi/JGwWNGJdvx8/mqdefault.jpg",
+  tagline: "Britaniyalik pop/akustik gitara qo'shiqchisi va bastakor",
+  facts: [
+    {key:"Janr", val:"Pop, Folk-pop, Acoustic"},
+    {key:"Mamlakat", val:"Buyuk Britaniya"},
+    {key:"Faoliyati", val:"2011 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Ed Sheeran gitara bilan kontsert berishdan boshlab, dunyo bo'ylab eng ko'p sotuvchi pop artistlardan biriga aylandi. Uning qo'shiqlari romantik va samimiy uslubda yoziladi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"+ (Plus)", year:"2011"},{name:"x (Multiply)", year:"2014"},{name:"÷ (Divide)", year:"2017"},{name:"= (Equals)", year:"2021"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Shape of You",ytId:"JGwWNGJdvx8"},{title:"Perfect",ytId:"2Vv-BfVoq4g"},{title:"Thinking Out Loud",ytId:"lp-EO5I60KA"},{title:"Photograph",ytId:"nSDgHBxUbVQ"},{title:"Bad Habits",ytId:"orJSJGHjBLI"}]}
+  ],
+  summary: "Ed Sheeran zamonaviy pop musiqaning eng yumshoq va ommabop ovozlaridan biri."
+},
+{
+  name: "Adele",
+  aliases: ["adele", "адель"],
+  emoji: "🎤",
+  photo: "https://img.youtube.com/vi/rYEDA3JcQqw/mqdefault.jpg",
+  tagline: "Britaniyalik soul/pop qo'shiqchisi, kuchli vokal ovozi bilan tanilgan",
+  facts: [
+    {key:"Janr", val:"Soul, Pop, Ballad"},
+    {key:"Mamlakat", val:"Buyuk Britaniya"},
+    {key:"Faoliyati", val:"2006 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Adele o'zining kuchli va his-tuyg'uga boy ovozi bilan butun dunyoda tanilgan. Uning albomlari ko'pincha shaxsiy hayotidagi munosabatlar haqida bo'ladi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"19", year:"2008"},{name:"21", year:"2011"},{name:"25", year:"2015"},{name:"30", year:"2021"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Rolling in the Deep",ytId:"rYEDA3JcQqw"},{title:"Someone Like You",ytId:"hLQl3WQQoQ0"},{title:"Hello",ytId:"YQHsXMglC9A"},{title:"Set Fire to the Rain",ytId:"Ri7-vnrJD3k"},{title:"Easy on Me",ytId:"U3ASj1L6_sY"}]}
+  ],
+  summary: "Adele zamonaviy soul-pop musiqaning eng kuchli ovozlaridan biri sifatida tanilgan."
+},
+{
+  name: "Billie Eilish",
+  aliases: ["billie eilish", "билли айлиш"],
+  emoji: "🖤",
+  photo: "https://img.youtube.com/vi/DyDfgMOUjCI/mqdefault.jpg",
+  tagline: "Amerikalik pop yulduzi, alternativ va minimalistik uslubi bilan tanilgan",
+  facts: [
+    {key:"Janr", val:"Pop, Alternative, Electropop"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"2015 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Billie Eilish o'zining shivirlovchi vokal uslubi va qoraygan, alternativ pop sound'i bilan yosh avlod orasida juda mashhur bo'ldi. U ukasi Finneas bilan birga ko'p qo'shiqlar yozadi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"When We All Fall Asleep, Where Do We Go?", year:"2019"},{name:"Happier Than Ever", year:"2021"},{name:"Hit Me Hard and Soft", year:"2024"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Bad Guy",ytId:"DyDfgMOUjCI"},{title:"Ocean Eyes",ytId:"viimfQi_pUw"},{title:"Happier Than Ever",ytId:"5GJWxDKyk3A"},{title:"Birds of a Feather",ytId:"_XYLD-gOe0I"},{title:"Lovely",ytId:"AKlqpxFtS2k"}]}
+  ],
+  summary: "Billie Eilish zamonaviy alternativ pop sohasining eng noyob ovozlaridan biri."
+},
+{
+  name: "Ariana Grande",
+  aliases: ["ariana grande", "ариана гранде"],
+  emoji: "🎀",
+  photo: "https://img.youtube.com/vi/gl1aHhXnN1k/mqdefault.jpg",
+  tagline: "Amerikalik pop/R&B qo'shiqchisi, keng diapazonli ovozi bilan tanilgan",
+  facts: [
+    {key:"Janr", val:"Pop, R&B"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"2008 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Ariana Grande aktrisalikdan musiqaga o'tib, zamonaviy pop musiqaning yetakchi ovozlaridan biriga aylandi. Uning vokal diapazoni va R&B ta'siri uning uslubini ajratib turadi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Dangerous Woman", year:"2016"},{name:"Sweetener", year:"2018"},{name:"Thank U, Next", year:"2019"},{name:"Eternal Sunshine", year:"2024"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Thank U, Next",ytId:"gl1aHhXnN1k"},{title:"7 Rings",ytId:"QYh6mYIJG2Y"},{title:"No Tears Left to Cry",ytId:"ffxKSjUwKdU"},{title:"Problem",ytId:"iS1g8G_njx8"},{title:"Positions",ytId:"tcYodQoapMg"}]}
+  ],
+  summary: "Ariana Grande zamonaviy pop-R&B sohasining eng kuchli vokalchilaridan biri."
+},
+{
+  name: "Eminem",
+  aliases: ["eminem", "эминем", "marshall mathers"],
+  emoji: "🎤",
+  photo: "https://img.youtube.com/vi/_Yhyp-_hX2s/mqdefault.jpg",
+  tagline: "Amerikalik rap legendasi, tarixdagi eng ko'p sotilgan reperlardan biri",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Rap"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"1996 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Eminem tezkor va texnik jihatdan murakkab rep uslubi bilan hip-hop tarixidagi eng nufuzli artistlardan biriga aylandi. Uning qo'shiqlari ko'pincha shaxsiy kurashlari va ijtimoiy mavzularga bag'ishlangan."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"The Marshall Mathers LP", year:"2000"},{name:"The Eminem Show", year:"2002"},{name:"Recovery", year:"2010"},{name:"Curtain Call", year:"2005"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Lose Yourself",ytId:"_Yhyp-_hX2s"},{title:"Not Afraid",ytId:"j5-yKhDd64s"},{title:"Stan",ytId:"gOMhN-hfMtY"},{title:"Without Me",ytId:"YVkUvmDQ3HY"},{title:"Love the Way You Lie",ytId:"uelHwf8o7_U"}]}
+  ],
+  summary: "Eminem hip-hop tarixidagi eng texnik va ta'sirli reperlardan biri hisoblanadi."
+},
+{
+  name: "Beyoncé",
+  aliases: ["beyonce", "beyoncé", "бейонсе"],
+  emoji: "👑",
+  photo: "https://img.youtube.com/vi/bnVUHWCynig/mqdefault.jpg",
+  tagline: "Amerikalik R&B/Pop qiroli (qirolichasi), Grammy mukofotlarining rekordchisi",
+  facts: [
+    {key:"Janr", val:"R&B, Pop, Soul"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"1997 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Beyoncé Destiny's Child guruhidan boshlab, mustaqil ravishda zamonaviy R&B va pop musiqaning eng nufuzli ovozlaridan biriga aylandi. U sahna mahorati va vokal kuchi bilan ajralib turadi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Dangerously in Love", year:"2003"},{name:"Lemonade", year:"2016"},{name:"Renaissance", year:"2022"},{name:"Cowboy Carter", year:"2024"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Halo",ytId:"bnVUHWCynig"},{title:"Single Ladies",ytId:"4m1EFMoRFvY"},{title:"Crazy in Love",ytId:"ViwtNLUqkMY"},{title:"Formation",ytId:"WDZJPJV__bQ"},{title:"Texas Hold 'Em",ytId:"SdMODhMlyMY"}]}
+  ],
+  summary: "Beyoncé zamonaviy musiqa sanoatining eng nufuzli va ko'p mukofotlangan yulduzlaridan biri."
+},
+{
+  name: "Rihanna",
+  aliases: ["rihanna", "рианна"],
+  emoji: "💎",
+  photo: "https://img.youtube.com/vi/CvBqzbB9-rk/mqdefault.jpg",
+  tagline: "Barbadoslik pop/R&B yulduzi, musiqa va biznes sohasida muvaffaqiyatli",
+  facts: [
+    {key:"Janr", val:"Pop, R&B, Dancehall"},
+    {key:"Mamlakat", val:"Barbados"},
+    {key:"Faoliyati", val:"2005 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Rihanna 2000-yillar oxiri va 2010-yillarning eng muvaffaqiyatli pop yulduzlaridan biri bo'lib, keyinchalik Fenty brendi orqali biznes sohasida ham katta yutuqlarga erishdi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Good Girl Gone Bad", year:"2007"},{name:"Loud", year:"2010"},{name:"Talk That Talk", year:"2011"},{name:"Anti", year:"2016"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Umbrella",ytId:"CvBqzbB9-rk"},{title:"Diamonds",ytId:"lWA2pjMjpBs"},{title:"We Found Love",ytId:"tg00YEETFzg"},{title:"Work",ytId:"HL1UzIK-flA"},{title:"Stay",ytId:"JF8BRvqGCNs"}]}
+  ],
+  summary: "Rihanna 2000-2010 yillar pop musiqasining eng muhim ovozlaridan biri hisoblanadi."
+},
+{
+  name: "Bruno Mars",
+  aliases: ["bruno mars", "бруно марс"],
+  emoji: "🎩",
+  photo: "https://img.youtube.com/vi/OPf0YbXqDm0/mqdefault.jpg",
+  tagline: "Amerikalik pop/funk qo'shiqchisi, sahna mahorati va retro uslubi bilan tanilgan",
+  facts: [
+    {key:"Janr", val:"Pop, Funk, R&B"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"2004 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Bruno Mars zamonaviy pop musiqaga 70-80-yillar funk va soul uslublarini qaytargan ijrochi. Uning jonli ijro mahorati alohida e'tirof etiladi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Doo-Wops & Hooligans", year:"2010"},{name:"Unorthodox Jukebox", year:"2012"},{name:"24K Magic", year:"2016"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Uptown Funk",ytId:"OPf0YbXqDm0"},{title:"24K Magic",ytId:"UqyT8IEBkvY"},{title:"Just the Way You Are",ytId:"LjhCEhWiKXk"},{title:"That's What I Like",ytId:"PMivT7MJ41M"},{title:"Grenade",ytId:"XjVNlgyjcpM"}]}
+  ],
+  summary: "Bruno Mars zamonaviy pop-funk uslubining eng ko'zga ko'ringan vakili."
+},
+{
+  name: "Coldplay",
+  aliases: ["coldplay", "колдплей"],
+  emoji: "🌈",
+  photo: "https://img.youtube.com/vi/dvgZkm1xWPE/mqdefault.jpg",
+  tagline: "Britaniyalik rok guruhi, dunyoda eng ko'p tinglanadigan jamoalardan biri",
+  facts: [
+    {key:"Janr", val:"Alternative Rock, Pop Rock"},
+    {key:"Mamlakat", val:"Buyuk Britaniya"},
+    {key:"Faoliyati", val:"1996 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Coldplay - Chris Martin boshchiligidagi guruh, ularning musiqasi keng auditoriyaga ega va katta stadion kontsertlari bilan mashhur."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Parachutes", year:"2000"},{name:"A Rush of Blood to the Head", year:"2002"},{name:"Viva la Vida", year:"2008"},{name:"Music of the Spheres", year:"2021"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Yellow",ytId:"yKNxeF4KMsY"},{title:"Viva la Vida",ytId:"dvgZkm1xWPE"},{title:"The Scientist",ytId:"RB-RcX5DS5A"},{title:"Paradise",ytId:"1G4isv_Fylg"},{title:"Hymn for the Weekend",ytId:"YykjpeuMNEk"}]}
+  ],
+  summary: "Coldplay dunyodagi eng katta stadion-rok guruhlaridan biri hisoblanadi."
+},
+{
+  name: "Imagine Dragons",
+  aliases: ["imagine dragons", "имеджин драгонс"],
+  emoji: "🐉",
+  photo: "https://img.youtube.com/vi/W2TE0DjdNqI/mqdefault.jpg",
+  tagline: "Amerikalik rok guruhi, anthem-uslubdagi xitlari bilan tanilgan",
+  facts: [
+    {key:"Janr", val:"Alternative Rock, Pop Rock, Electronic"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"2008 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Imagine Dragons rok va elektron musiqani birlashtirib, kuchli, energetik va keng auditoriyaga mos qo'shiqlar yaratadi. Ularning ko'plab xitlari kino va o'yin treylerlarida ishlatilgan."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Night Visions", year:"2012"},{name:"Evolve", year:"2017"},{name:"Mercury - Act 1", year:"2021"},{name:"Mercury - Act 2", year:"2022"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Believer",ytId:"W2TE0DjdNqI"},{title:"Radioactive",ytId:"ktvTqknDobU"},{title:"Thunder",ytId:"fKopy74weus"},{title:"Demons",ytId:"mWRsgZuwf_8"},{title:"Enemy",ytId:"D9G1VOjN_84"}]}
+  ],
+  summary: "Imagine Dragons zamonaviy alternativ-pop-rok sohasining eng ommabop guruhlaridan biri."
+},
+{
+  name: "Dua Lipa",
+  aliases: ["dua lipa", "дуа липа"],
+  emoji: "✨",
+  photo: "https://img.youtube.com/vi/DyHkM3YFQVY/mqdefault.jpg",
+  tagline: "Britaniyalik pop/disko-pop yulduzi, retro-disko uyg'onishining yetakchisi",
+  facts: [
+    {key:"Janr", val:"Pop, Disco-pop, Dance"},
+    {key:"Mamlakat", val:"Buyuk Britaniya"},
+    {key:"Faoliyati", val:"2015 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Dua Lipa zamonaviy pop musiqaga 70-80-yillar disko ta'sirini qaytargan eng yorqin ovozlardan biri. Uning raqsga tushiriladigan xitlari butun dunyo bo'ylab mashhur."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Dua Lipa", year:"2017"},{name:"Future Nostalgia", year:"2020"},{name:"Radical Optimism", year:"2024"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Levitating",ytId:"TUVcZfQe-Kw"},{title:"Don't Start Now",ytId:"oygrmKOqttA"},{title:"New Rules",ytId:"k2qgadSvNyU"},{title:"IDGAF",ytId:"DyHkM3YFQVY"},{title:"Houdini",ytId:"5OBDFaLCDzQ"}]}
+  ],
+  summary: "Dua Lipa 2020-yillar pop-disko uyg'onishining yetakchi ovozi hisoblanadi."
+},
+{
+  name: "Michael Jackson",
+  aliases: ["michael jackson", "майкл джексон"],
+  emoji: "🕺",
+  photo: "https://img.youtube.com/vi/Zi_XLOBDo_Y/mqdefault.jpg",
+  tagline: "'Pop qiroli' nomi bilan tanilgan, musiqa tarixidagi eng ta'sirli san'atkor",
+  facts: [
+    {key:"Janr", val:"Pop, R&B, Funk"},
+    {key:"Mamlakat", val:"AQSH"},
+    {key:"Faoliyati", val:"1964-2009"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Michael Jackson Jackson 5 guruhidan boshlab, dunyo tarixidagi eng katta sotuvchi va eng ta'sirli pop ijrochisiga aylandi. Uning raqs uslubi va video-kliplari musiqa sanoatini o'zgartirdi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Off the Wall", year:"1979"},{name:"Thriller", year:"1982"},{name:"Bad", year:"1987"},{name:"Dangerous", year:"1991"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Billie Jean",ytId:"Zi_XLOBDo_Y"},{title:"Thriller",ytId:"sOnqjkJTMaA"},{title:"Beat It",ytId:"oRdxUFDoQe0"},{title:"Smooth Criminal",ytId:"h_D3VFfhvs4"},{title:"Man in the Mirror",ytId:"PivWY9wn5ps"}]}
+  ],
+  summary: "Michael Jackson 'Pop qiroli' sifatida musiqa tarixiga abadiy muhrlangan."
+},
+{
+  name: "Земфира",
+  aliases: ["земфира", "zemfira"],
+  emoji: "🎸",
+  photo: "https://img.youtube.com/vi/vTQXMRYol5E/mqdefault.jpg",
+  tagline: "Rossiyalik rok qo'shiqchisi va bastakor, 90-2000-yillar rok sahnasining yetakchisi",
+  facts: [
+    {key:"Janr", val:"Alternative Rock, Rock"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"1999 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Земфира rus tilidagi alternativ-rok sahnasining eng nufuzli ijrochilaridan biri. Uning matnlari chuqur shaxsiy va shoirona uslubda yoziladi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Zemfira", year:"1999"},{name:"Прости меня моя любовь", year:"2000"},{name:"Спасибо", year:"2007"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Хочешь?"},{title:"Аривидерчи"},{title:"Искала"},{title:"Сигареты"},{title:"Малыш"}]}
+  ],
+  summary: "Земфира rus rok musiqasining eng nufuzli va ta'sirchan ovozlaridan biri."
+},
+{
+  name: "Моргенштерн",
+  aliases: ["моргенштерн", "morgenshtern"],
+  emoji: "🔥",
+  photo: "https://img.youtube.com/vi/kKFiGSCMHkI/mqdefault.jpg",
+  tagline: "Rossiyalik reper va shou-biznes yulduzi, internet madaniyatining markaziy figurasi",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Trap"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2017 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Моргенштерн (Алишер Валеев) ijtimoiy tarmoqlardagi mashhurligi va provokatsion uslubi bilan rus trap-rep sahnasining eng yirik yulduzlaridan biriga aylandi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Million Dollar: Original", year:"2021"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Cadillac"},{title:"Show"},{title:"Bling-Bling"},{title:"Кто бы мог подумать"},{title:"Family"}]}
+  ],
+  summary: "Моргенштерн 2020-yillar rus trap-rep madaniyatining eng ko'zga ko'ringan vakili."
+},
+{
+  name: "Баста",
+  aliases: ["баста", "basta", "ноггано"],
+  emoji: "🎤",
+  photo: "https://img.youtube.com/vi/jqQQnrF-Hyg/mqdefault.jpg",
+  tagline: "Rossiyalik reper, rus hip-hop sahnasining faxriy vakillaridan biri",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Rap"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2000 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Баста (Василий Вакуленко) rus hip-hop sahnasining eng uzoq vaqt faoliyat ko'rsatib kelayotgan va hurmatga sazovor vakillaridan biri. U mustaqil leybl ham boshqaradi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Баста 1", year:"2009"},{name:"Баста 2", year:"2010"},{name:"Баста для своих", year:"2014"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Сансара"},{title:"Моя игра"},{title:"Любимый город"},{title:"Робот"},{title:"Шоу"}]}
+  ],
+  summary: "Баста rus hip-hop tarixidagi eng obro'li va izchil ijrochilardan biri."
+},
+{
+  name: "Полина Гагарина",
+  aliases: ["полина гагарина", "polina gagarina"],
+  emoji: "🎶",
+  photo: "https://img.youtube.com/vi/N4pBDoCbVfM/mqdefault.jpg",
+  tagline: "Rossiyalik pop qo'shiqchisi, Eurovision finalisti",
+  facts: [
+    {key:"Janr", val:"Pop, Ballad"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2003 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Полина Гагарина rus pop sahnasining eng kuchli vokalchilaridan biri sifatida tanilgan, 2015-yilda Eurovision qo'shiq tanlovida Rossiyani vakillik qilib, 2-o'rinni egallagan."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Свободна", year:"2014"},{name:"А777А", year:"2018"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Кукушка"},{title:"A Million Voices"},{title:"Спорим"},{title:"Колыбельная"},{title:"Обернись"}]}
+  ],
+  summary: "Полина Гагарина zamonaviy rus pop musiqasining yetakchi vokal yulduzlaridan biri."
+},
+{
+  name: "Дима Билан",
+  aliases: ["дима билан", "dima bilan"],
+  emoji: "🏆",
+  photo: "https://img.youtube.com/vi/bXzEQFCYjHY/mqdefault.jpg",
+  tagline: "Rossiyalik pop qo'shiqchisi, Eurovision 2008 g'olibi",
+  facts: [
+    {key:"Janr", val:"Pop"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2000 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Дима Билан 2008-yilda Eurovision qo'shiq tanlovida 'Believe' qo'shig'i bilan Rossiyaga g'alaba olib kelgan birinchi ijrochi bo'ldi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Между нами тает лед", year:"2008"},{name:"Чувства", year:"2011"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Believe"},{title:"Невозможное возможно"},{title:"Я не ангел"},{title:"Number One Fan"},{title:"Прости меня"}]}
+  ],
+  summary: "Дима Билан 2000-yillar rus pop musiqasining eng mashhur ovozlaridan biri."
+},
+{
+  name: "Артур Пирожков",
+  aliases: ["артур пирожков", "artur pirozhkov"],
+  emoji: "🍑",
+  tagline: "Rossiyalik pop qo'shiqchisi, 'Чика' xiti bilan mashhur",
+  facts: [
+    {key:"Janr", val:"Pop, Dance-pop"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2013 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Артур Пирожков 'Чика' qo'shig'i bilan internetda virusli bo'lib, qisqa vaqt ichida rus pop sahnasining tanilgan yuziga aylandi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Чика", year:"2019"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Чика"},{title:"Зацепила"},{title:"Свидания"},{title:"Грустный Дэнс"},{title:"М5"}]}
+  ],
+  summary: "Артур Пирожков 2019-yillarda eng ko'p tinglangan rus pop xitlaridan biri muallifi."
+},
+{
+  name: "Клава Кока",
+  aliases: ["клава кока", "klava koka"],
+  emoji: "🎀",
+  tagline: "Rossiyalik yosh pop qo'shiqchisi, ijtimoiy tarmoqlarda mashhur",
+  facts: [
+    {key:"Janr", val:"Pop"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2018 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Клава Кока yoshlar orasida juda mashhur bo'lgan zamonaviy rus pop qo'shiqchisi, ko'plab hamkorlikdagi qo'shiqlari bilan tanilgan."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Романтика", year:"2020"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Не Net"},{title:"Юность"},{title:"На Стиле"},{title:"DOROGOY"},{title:"Бьюти"}]}
+  ],
+  summary: "Клава Кока zamonaviy rus pop musiqasining yosh avlod yulduzlaridan biri."
+},
+{
+  name: "Макс Корж",
+  aliases: ["макс корж", "max korzh"],
+  emoji: "🎸",
+  tagline: "Belarusiyalik reper/qo'shiqchi, rus tilida ijro etadi",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Pop-rap"},
+    {key:"Mamlakat", val:"Belarus"},
+    {key:"Faoliyati", val:"2010 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Макс Корж Belarusiyalik bo'lib, rus tilidagi pop-rep sahnasida juda katta muxlislar bazasiga ega, katta stadion kontsertlari bilan mashhur."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Похиталити", year:"2013"},{name:"Сэнсэй", year:"2017"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Сэнсэй"},{title:"Гнев"},{title:"Розовое вино"},{title:"Огонь"},{title:"Иногда"}]}
+  ],
+  summary: "Макс Корж rus tilidagi pop-rep sahnasining eng katta stadion yulduzlaridan biri."
+},
+{
+  name: "Время и Стекло",
+  aliases: ["время и стекло", "vremya i steklo"],
+  emoji: "💿",
+  tagline: "Pop duosi, raqsga tushiriladigan ritmik xitlari bilan mashhur",
+  facts: [
+    {key:"Janr", val:"Pop, Dance"},
+    {key:"Mamlakat", val:"Ukraina/Rossiya"},
+    {key:"Faoliyati", val:"2014 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Время и Стекло duosi 2010-yillar o'rtalarida rus tilidagi pop-dance sahnasida juda mashhur bo'lgan, yengil va ritmik qo'shiqlari bilan tanilgan."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Лучшие хиты", year:"2017"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Около тебя"},{title:"Так выпала карта"},{title:"Имя 505"},{title:"Спектакль окончен"},{title:"Курю"}]}
+  ],
+  summary: "Время и Стекло 2010-yillar o'rtasidagi pop-dance sahnasining yorqin namoyondalaridan biri."
+},
+{
+  name: "ЛСП",
+  aliases: ["лсп", "lsp"],
+  emoji: "🎧",
+  tagline: "Rossiyalik reper, melanxolik va lo-fi uslubdagi rep bilan tanilgan",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Lo-fi rap"},
+    {key:"Mamlakat", val:"Rossiya"},
+    {key:"Faoliyati", val:"2014 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"ЛСП (Олег Savosтьянов) yoshlar orasida mashhur, melanxolik ohanglarga ega rep musiqasi bilan tanilgan rus reperi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Где-то на свете", year:"2018"},{name:"Дом с нормальными явлениями", year:"2019"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Где-то на свете"},{title:"Голым"},{title:"Камин"},{title:"Сказка"},{title:"Дом"}]}
+  ],
+  summary: "ЛСП rus lo-fi rep sahnasining o'ziga xos ovozlaridan biri."
+},
+{
+  name: "Иван Дорн",
+  aliases: ["иван дорн", "ivan dorn"],
+  emoji: "🎷",
+  tagline: "Ukrainalik pop/funk qo'shiqchisi, rus tilida ijro etadi",
+  facts: [
+    {key:"Janr", val:"Pop, Funk, Soul"},
+    {key:"Mamlakat", val:"Ukraina"},
+    {key:"Faoliyati", val:"2011 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Иван Дорн funk va soul elementlarini zamonaviy pop bilan birlashtirib, rus tilidagi musiqa bozorida o'ziga xos ovoz yaratgan ijrochi."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Co.Лнце", year:"2012"},{name:"Танцуй, пока молодой", year:"2015"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Танцевать"},{title:"Стыцамен"},{title:"Прованс"},{title:"Бигуди"},{title:"Citrus"}]}
+  ],
+  summary: "Иван Дорн rus tilidagi musiqa bozorida funk-pop uslubining yetakchi vakili."
+},
+{
+  name: "Дильназ Ахмадиева",
+  aliases: ["дильназ ахмадиева", "dilnaz akhmadiyeva", "dilnaz"],
+  emoji: "🌟",
+  tagline: "Qozoqstonlik pop yulduzi, zamonaviy qozoq pop-musiqasining yetakchi vakili",
+  facts: [
+    {key:"Janr", val:"Pop"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"2010-yillardan beri"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Dilnaz Akhmadiyeva Qozoqistonning eng mashhur va eng ko'p tinglanadigan pop qo'shiqchilaridan biri. Uning qo'shiqlari qozoq va rus tillarida ijro etiladi, klip va kontsertlari katta auditoriyaga ega."},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Forever"},{title:"Стобой"},{title:"Алдыртпа"},{title:"Сен мені"},{title:"Боюсь"}]}
+  ],
+  summary: "Dilnaz Akhmadiyeva zamonaviy qozoq pop-musiqasining eng mashhur vakillaridan biri."
+},
+{
+  name: "Кайрат Нуртас",
+  aliases: ["кайрат нуртас", "kairat nurtas"],
+  emoji: "🎤",
+  tagline: "Qozoqstonlik xalq qo'shiqchisi, lirik va sentimental qo'shiqlari bilan mashhur",
+  facts: [
+    {key:"Janr", val:"Pop, Lyrical"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"2008 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Kairat Nurtas Qozoqistonda eng ommabop va eng ko'p tinglangan qo'shiqchilardan biri bo'lib, uning lirik, his-tuyg'uga boy qo'shiqlari milliongacha tinglovchiga ega."},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Айналайын"},{title:"Сагындым"},{title:"Косілмес"},{title:"Жан"}]}
+  ],
+  summary: "Kairat Nurtas qozoq xalq orasida eng sevimli pop ijrochilardan biri."
+},
+{
+  name: "Скриптонит",
+  aliases: ["скриптонит", "scriptonite", "адиль жалелов"],
+  emoji: "🎙️",
+  photo: "https://img.youtube.com/vi/lFYCMo3UGCY/mqdefault.jpg",
+  tagline: "Qozoqstonlik reper/prodyuser, rus tilidagi hip-hop sahnasiga katta ta'sir ko'rsatgan",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Trip-hop"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"2010 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Скриптонит (Adil Jalelov) Pavlodar shahridan bo'lib, o'ziga xos atmosferik prodyuserlik va melanxolik rep uslubi bilan butun MDH hududidagi hip-hop sahnasiga katta ta'sir ko'rsatgan."},
+    {title:"Albomlar", icon:"💿", type:"albums", content:[{name:"Кто убил Марка?", year:"2014"},{name:"Праздник", year:"2017"}]},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Чёрный лексус"},{title:"Юность"},{title:"Иногда"},{title:"Слова"},{title:"Розовое вино"}]}
+  ],
+  summary: "Скриптонит Qozoqistondan chiqqan, MDH hip-hop sahnasiga eng katta ta'sir ko'rsatgan reperlardan biri."
+},
+{
+  name: "Ninety One",
+  aliases: ["ninety one", "91", "найнти ван"],
+  emoji: "💫",
+  tagline: "Qozoqstonlik Q-pop guruhi, Markaziy Osiyoda K-pop uslubini ommalashtirgan",
+  facts: [
+    {key:"Janr", val:"Q-pop (K-pop uslubida)"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"2015 - hozirgacha"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Ninety One Qozoqistonning birinchi K-pop uslubidagi yigitlar guruhi bo'lib, 'Q-pop' atamasini mashhur qilgan. Ular yosh avlod orasida juda katta muxlislar bazasiga ega."},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Aiyptama"},{title:"Bahytty bol"},{title:"Aitadi"},{title:"Aru"},{title:"Aldaima"}]}
+  ],
+  summary: "Ninety One Markaziy Osiyodagi Q-pop madaniyatining asoschilaridan biri hisoblanadi."
+},
+{
+  name: "Дос-Мукасан",
+  aliases: ["дос-мукасан", "dos-mukasan", "dos mukasan"],
+  emoji: "🎼",
+  tagline: "Sovet davridagi afsonaviy qozoq vokal-instrumental ansambli",
+  facts: [
+    {key:"Janr", val:"Vokal-instrumental, Pop"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"1968-yildan"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Дос-Мукасан Sovet davridan boshlab Qozoqistonning eng mashhur va sevimli vokal-instrumental ansambllaridan biri bo'lib, ko'plab avlodlar uchun klassik qo'shiqlar yaratgan."},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Ana Bizdin Astana"},{title:"Дос-Мукасан"},{title:"Алия"},{title:"Караганда"},{title:"Гульдер"}]}
+  ],
+  summary: "Дос-Мукасан qozoq estrada musiqasining eng e'tirof etilgan klassik jamoasi."
+},
+{
+  name: "Жанар Дугалова",
+  aliases: ["жанар дугалова", "zhanar dugalova"],
+  emoji: "🎶",
+  tagline: "Qozoqstonlik pop qo'shiqchisi, etno-pop uslubida ijro etadi",
+  facts: [
+    {key:"Janr", val:"Pop, Ethno-pop"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"2000-yillardan"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Жанар Дугалова qozoq milliy ohanglarini zamonaviy pop uslubi bilan birlashtirib ijro etadigan, mamlakatda keng tanilgan qo'shiqchi."},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Сен Кетсенде"},{title:"Әнім менің"},{title:"Қыз бала"},{title:"Жан сезім"}]}
+  ],
+  summary: "Жанар Дугалова zamonaviy qozoq etno-pop musiqasining tanilgan ovozlaridan biri."
+},
+{
+  name: "Galymzhan Moldanazar",
+  aliases: ["galymzhan moldanazar", "ғалымжан молданазар", "galymzhan"],
+  emoji: "🎹",
+  tagline: "Qozoqstonlik indie/pop qo'shiqchisi va bastakor",
+  facts: [
+    {key:"Janr", val:"Indie Pop, Folk"},
+    {key:"Mamlakat", val:"Qozoqiston"},
+    {key:"Faoliyati", val:"2010-yillardan"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Galymzhan Moldanazar zamonaviy qozoq tilidagi indie-pop musiqaning yorqin vakillaridan biri, yumshoq va lirik ohanglari bilan tanilgan."},
+    {title:"Top qo'shiqlar", icon:"🎵", type:"tracks", content:[{title:"Ainalayin"},{title:"Padişah"},{title:"Көзімді ашсам"}]}
+  ],
+  summary: "Galymzhan Moldanazar zamonaviy qozoq indie-pop sahnasining e'tiborga molik ovozi."
+},
+{
+  name: "BAKR",
+  aliases: ["bakr", "бакр", "bakar"],
+  emoji: "🎙️",
+  photo: "https://img.youtube.com/vi/Rn5GNpGSrMQ/mqdefault.jpg",
+  tagline: "Qirg'izistonlik reper, qirg'iz trap va hip-hop sahnasining yorqin vakili",
+  facts: [
+    {key:"Janr", val:"Hip-Hop, Trap, Rap"},
+    {key:"Mamlakat", val:"Qirg'iziston"},
+    {key:"Faoliyati", val:"2015 - hozirgacha"},
+    {key:"Til", val:"Qirg'iz, Rus"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"BAKR — Qirg'izistondan chiqqan zamonaviy trap va hip-hop ijrochisi. U qirg'iz va rus tillarida ijro etib, MDH yoshlari orasida katta muxlislar bazasini to'plagan. Uning qo'shiqlari ko'cha hayoti, shaxsiy his-tuyg'ular va haqiqatni aks ettiradi."},
+    {title:"Mashhur qo'shiqlar", icon:"🎵", type:"tracks", content:[
+      {title:"BAKR - Пустота", ytId:"Rn5GNpGSrMQ"},
+      {title:"BAKR - Больно", ytId:"SEARCH"},
+      {title:"BAKR - Холодно", ytId:"SEARCH"},
+      {title:"BAKR - Дорога", ytId:"SEARCH"},
+      {title:"BAKR - Небо", ytId:"SEARCH"}
+    ]},
+    {title:"Uslub", icon:"🎨", type:"tags", content:["Trap", "Hip-Hop", "Qirg'iz rap", "MDH rap", "Yoshlar"]}
+  ],
+  summary: "BAKR Qirg'iziston rap sahnasining eng tanilgan vakili, MDH bo'ylab keng auditoriyaga ega ijrochi."
+},
+{
+  name: "Ulukmanapo",
+  aliases: ["ulukmanapo", "улукманапо", "ulukmanapo'", "улук"],
+  emoji: "🎙️",
+  photo: "https://img.youtube.com/vi/2K7PPMdFOq0/mqdefault.jpg",
+  tagline: "Qirg'izistonlik rep/trap ijrochisi, MDH yoshlar orasida eng mashhur qirg'iz reperlaridan biri",
+  facts: [
+    {key:"Janr", val:"Rap, Trap, Hip-Hop"},
+    {key:"Mamlakat", val:"Qirg'iziston"},
+    {key:"Faoliyati", val:"2015 - hozirgacha"},
+    {key:"Til", val:"Qirg'iz, Rus"}
+  ],
+  sections: [
+    {title:"Biografiya", icon:"📖", type:"prose", content:"Ulukmanapo — qirg'iz trap va rep musiqasining eng yorqin vakili. U qirg'iz va rus tillarida ijro etib, ijtimoiy tarmoqlarda katta muxlislar ommasi to'plagan. Uning qo'shiqlari yoshlar hayoti, ko'cha madaniyati va shaxsiy his-tuyg'ular haqida."},
+    {title:"Mashhur qo'shiqlar", icon:"🎵", type:"tracks", content:[
+      {title:"Бишкек", ytId:"2K7PPMdFOq0"},
+      {title:"Улук", ytId:"dP1sSZZkDr4"},
+      {title:"Асфальт", ytId:"XMh4GqWJVFk"},
+      {title:"Мечта", ytId:"HVLyO2jAMiw"},
+      {title:"Горы", ytId:"SEARCH"}
+    ]},
+    {title:"Uslub", icon:"🎨", type:"tags", content:["Trap", "Qirg'iz rap", "Street", "Yoshlar", "MDH rap"]}
+  ],
+  summary: "Ulukmanapo qirg'iz rep sahnasida o'z yo'lini topgan va MDH bo'ylab tanilgan ijrochi."
+}
+];
+
+
+
+let infoHistory = [];
+const infoStream  = document.getElementById("info-stream");
+const infoInput   = document.getElementById("info-input");
+const infoSendBtn = document.getElementById("info-send");
+const infoWelcome = document.getElementById("info-welcome");
+
+const INFO_SYSTEM = `Sen musiqa bo'yicha ekspert AI assistantsan. Sening ichingda juda ko'p musiqa biliming bor.
+
+Foydalanuvchi artist, albom yoki qo'shiq haqida so'raganda, O'Z BILIMINGDAN foydalanib FAQAT quyidagi JSON formatida javob ber (boshqa hech narsa qo'shma, markdown ham emas):
+
+{
+  "type": "artist" | "album" | "track" | "general",
+  "name": "...",
+  "emoji": "bitta emoji",
+  "tagline": "qisqa ta'rif (1 gap)",
+  "stats": [
+    {"num": "...", "label": "..."}
+  ],
+  "facts": [
+    {"key": "...", "val": "..."}
+  ],
+  "sections": [
+    {
+      "title": "Bo'lim nomi",
+      "icon": "emoji",
+      "type": "prose" | "tags" | "albums" | "tracks",
+      "content": "matn (prose uchun)" | ["massiv (tags uchun)"] | [{"name":"...","year":"..."}] | [{"title":"..."}]
+    }
+  ],
+  "summary": "yakuniy xulosa 1-2 gap"
+}
+
+Foydalanuvchi qaysi tilda yozsa, shu tilda javob ber. Barcha maydonlar shu tilda bo'lsin.
+FAQAT JSON, boshqa hech narsa.`;
+
+
+function hideInfoWelcome() {
+  if (infoWelcome && infoWelcome.style.display !== "none") {
+    infoWelcome.style.display = "none";
+  }
+}
+
+function renderInfoCard(data) {
+  let html = `<div class="info-rich">`;
+
+  // Header WITH artist photo
+  const photoHtml = data.photo
+    ? `<img src="${data.photo}" alt="${data.name}" style="width:64px;height:64px;border-radius:12px;object-fit:cover;border:2px solid rgba(255,87,34,0.4);flex-shrink:0" onerror="this.style.display='none'">`
+    : `<span style="font-size:2.5rem;width:64px;height:64px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border-radius:12px;border:2px solid var(--border);flex-shrink:0">${data.emoji || "🎵"}</span>`;
+
+  html += `<div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+    ${photoHtml}
+    <div>
+      <div style="font-size:1.1rem;font-weight:700;color:var(--text)">${data.name || ""}</div>
+      <div style="font-size:0.82rem;color:var(--muted);margin-top:3px;line-height:1.4">${data.tagline || ""}</div>
+    </div>
+  </div>`;
+
+  // Stats row
+  if (data.stats && data.stats.length) {
+    html += `<div class="info-stat-row">`;
+    data.stats.forEach(s => {
+      html += `<div class="info-stat"><div class="info-stat-num">${s.num}</div><div class="info-stat-lbl">${s.label}</div></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Facts
+  if (data.facts && data.facts.length) {
+    html += `<div class="info-section"><div class="info-section-title"><span>📋</span> Asosiy ma'lumotlar</div>`;
+    data.facts.forEach(f => {
+      html += `<div class="info-fact-row"><span class="info-fact-key">${f.key}</span><span class="info-fact-val">${f.val}</span></div>`;
+    });
+    html += `</div>`;
+  }
+
+  // Sections
+  if (data.sections && data.sections.length) {
+    data.sections.forEach(sec => {
+      html += `<div class="info-section"><div class="info-section-title"><span>${sec.icon||"📌"}</span> ${sec.title}</div>`;
+      if (sec.type === "prose") {
+        html += `<div class="info-prose">${(sec.content||"").replace(/\n/g,"<br>")}</div>`;
+      } else if (sec.type === "tags" && Array.isArray(sec.content)) {
+        html += `<div class="info-tag-list">`;
+        sec.content.forEach(tag => { html += `<span class="info-tag">${tag}</span>`; });
+        html += `</div>`;
+      } else if (sec.type === "albums" && Array.isArray(sec.content)) {
+        html += `<div class="info-album-grid">`;
+        sec.content.forEach(al => {
+          html += `<div class="info-album-card"><div class="info-album-name">${al.name||al.title||""}</div><div class="info-album-year">${al.year||""}</div></div>`;
+        });
+        html += `</div>`;
+      } else if (sec.type === "tracks" && Array.isArray(sec.content)) {
+        sec.content.forEach((tr, idx) => {
+          const hasId = tr.ytId && tr.ytId !== "SEARCH" && tr.ytId.length === 11;
+          const ytUrl = hasId
+            ? `https://www.youtube.com/watch?v=${tr.ytId}`
+            : `https://www.youtube.com/results?search_query=${encodeURIComponent(tr.title || tr)}`;
+          const thumbHtml = hasId
+            ? `<img src="https://img.youtube.com/vi/${tr.ytId}/mqdefault.jpg" style="width:72px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid var(--border)" loading="lazy" onerror="this.outerHTML='<div style=width:72px;height:48px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;border:1px solid var(--border)>🎵</div>'">`
+            : `<div style="width:72px;height:48px;border-radius:8px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;border:1px solid var(--border)">🎵</div>`;
+          html += `<a href="${ytUrl}" target="_blank" rel="noopener" class="music-track" style="margin-bottom:5px;text-decoration:none">
+            <div class="track-thumb-wrap" style="position:relative">
+              <span class="track-num-badge">${idx+1}</span>
+              ${thumbHtml}
+            </div>
+            <div class="track-info"><div class="track-title">${tr.title||tr}</div></div>
+            <span class="track-link-icon">▶ YouTube</span>
+          </a>`;
+        });
+      }
+      html += `</div>`;
+    });
+  }
+
+  // Summary
+  if (data.summary) {
+    html += `<div style="margin-top:10px;padding:10px 14px;background:rgba(255,87,34,0.05);border-left:3px solid var(--fire);border-radius:0 8px 8px 0;font-size:0.88rem;color:#bbb;line-height:1.6">${data.summary}</div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+// Levenshtein distance hisoblash
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length: m+1}, (_, i) => Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+// Lokal ma'lumotlar bazasidan qidirish (to'g'ri va fuzzy)
+function findArtistInDB(text) {
+  const norm = text.toLowerCase().trim();
+
+  // 1. Avval aniq moslikni tekshir (substring match)
+  let best = null;
+  let bestLen = 0;
+  for (const artist of MUSIC_DB) {
+    for (const alias of artist.aliases) {
+      const a = alias.toLowerCase();
+      if (norm.includes(a) && a.length > bestLen) {
+        best = artist;
+        bestLen = a.length;
+      }
+    }
+  }
+  if (best) return { artist: best, fuzzy: false };
+
+  // 2. Fuzzy matching — eng yaqin aliasni top
+  // Foydalanuvchi yozgan so'zlarni alohida ajratib, har bir alias bilan solishtir
+  const words = norm.split(/\s+/);
+  let closestArtist = null;
+  let closestDist = Infinity;
+  const MAX_DIST = 3; // maksimal ruxsat etilgan xato soni
+
+  for (const artist of MUSIC_DB) {
+    for (const alias of artist.aliases) {
+      const aliasWords = alias.toLowerCase().split(/\s+/);
+      // Alias so'zlari soni bilan foydalanuvchi so'zlari orasida oyna siljitib solishtir
+      for (let i = 0; i <= words.length - aliasWords.length; i++) {
+        const slice = words.slice(i, i + aliasWords.length).join(" ");
+        const dist = levenshtein(slice, alias.toLowerCase());
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestArtist = artist;
+        }
+      }
+      // Butun matni ham tekshir
+      const dist = levenshtein(norm, alias.toLowerCase());
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestArtist = artist;
+      }
+    }
+  }
+
+  if (closestArtist && closestDist <= MAX_DIST) {
+    return { artist: closestArtist, fuzzy: true, dist: closestDist };
+  }
+
+  return null;
+}
+
+function renderNotFound(text) {
+  return `<div class="info-prose">
+    "<b>${text}</b>" haqida ma'lumot bazamizda topilmadi. 😔<br><br>
+    Boshqa ijrochi nomini kiritib ko'ring.
+  </div>`;
+}
+
+function infoAskChip(artistName) {
+  const q = {
+    uz: artistName + " haqida aytib ber",
+    ru: "Расскажи о " + artistName,
+    en: "Tell me about " + artistName
+  };
+  infoAsk(q[currentLang] || q.uz);
+}
+
+async function infoAsk(text) {
+  hideInfoWelcome();
+  addBubble(infoStream, "user", text);
+  infoSendBtn.disabled = true;
+  showTyping(infoStream, "info-typing");
+
+  // Lokal bazadan qidirish
+  const found = findArtistInDB(text);
+
+  // Sun'iy kechikish (UX uchun)
+  setTimeout(() => {
+    hideTyping("info-typing");
+    if (found) {
+      let prefix = "";
+      if (found.fuzzy) {
+        prefix = `<div style="font-size:0.8rem;color:var(--muted);margin-bottom:10px;padding:6px 10px;background:rgba(255,145,0,0.07);border-radius:8px;border:1px solid rgba(255,145,0,0.2)">
+          🔍 "<b>${text}</b>" topilmadi — siz <b>${found.artist.name}</b> ni nazarda tutgan bo'lsangiz kerak?
+        </div>`;
+      }
+      addBubble(infoStream, "bot", prefix + renderInfoCard(found.artist), true);
+    } else {
+      addBubble(infoStream, "bot", renderNotFound(text), true);
+    }
+    infoSendBtn.disabled = false;
+  }, 400);
+}
+
+function infoSend() {
+  const text = infoInput.value.trim();
+  if (!text) return;
+  infoInput.value = ""; infoInput.style.height = "auto";
+  infoAsk(text);
+}
+
+infoSendBtn.addEventListener("click", infoSend);
+infoInput.addEventListener("keydown", e => { if (e.key==="Enter" && !e.shiftKey) { e.preventDefault(); infoSend(); } });
+infoInput.addEventListener("input", () => { infoInput.style.height="auto"; infoInput.style.height=Math.min(infoInput.scrollHeight,140)+"px"; });
+document.getElementById("info-reset").addEventListener("click", () => {
+  infoStream.innerHTML = ""; infoHistory = [];
+  if (infoWelcome) infoWelcome.style.display = "";
+});
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+buildGrid();
+initMoodSession();
+
+
+</script>
+</body>
+</html>
