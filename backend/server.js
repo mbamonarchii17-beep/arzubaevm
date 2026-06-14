@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3000;
 const ALLOWED_ORIGINS = [
   "http://localhost:5500",          // lokal test uchun
   "http://127.0.0.1:5500",
-  // "https://SIZNING_USERNAME.github.io"  // <-- deploydan keyin shu qatorni oching
+   "https://mbamonarchii17-beep.github.io"  // <-- deploydan keyin shu qatorni oching
 ];
 
 app.use(cors({
