@@ -725,25 +725,85 @@ function parseMoodReply(raw) {
 async function sendMood(custom = null) {
   const text = custom || userInput.value.trim();
   if (!text) return;
-  if (!custom) { moodMsgCount++; updateRecBtn(); userInput.value = ""; userInput.style.height = "auto"; }
+  
+  if (!custom) { 
+    moodMsgCount++; 
+    updateRecBtn(); 
+    userInput.value = ""; 
+    userInput.style.height = "auto"; 
+  }
+  
   sendBtn.disabled = true;
   addBubble(moodStream, "user", text);
   showTyping(moodStream, "mood-typing");
-  moodHistory.push({ role:"user", content: text });
+  moodHistory.push({ role: "user", content: text });
+
+  // SIZNING TAYYOR YANDEX API KALITINGIZ
+  const yandexApiKey = "AQ.Ab8RN6LuVboCgn9CJweuM9B5eLjtt4Fifw_VPMFCIzd0ZMuxHw";
+  
+  // Yandex katalog ID (folder_id). Buni shunday qoldirasiz
+  const folderId = "b1g"; 
+
+  // Tilni tekshirib, Yandex'ga buyruq beramiz
+  const langInstruction = currentLang === "ru" ? "ВАЖНО: Отвечай ТОЛЬКО на русском языке! Используй подходящие эмодзи." 
+    : currentLang === "en" ? "IMPORTANT: Reply ONLY in English! Use relevant emojis."
+    : "MUHIM: FAQAT o'zbek tilida javob ber! Har doim gapni mos emojilar bilan boyit!";
+
+  // Yandex GPT formatiga xabarlarni tayyorlash
+  const yandexMessages = [
+    { role: "system", text: MOOD_SYSTEM + "\n\n" + langInstruction }
+  ];
+
+  // Suhbat tarixini Yandex'ga qo'shish
+  moodHistory.forEach(msg => {
+    yandexMessages.push({
+      role: msg.role === "assistant" ? "assistant" : "user",
+      text: msg.content
+    });
+  });
+
+  const payload = {
+    modelUri: `gpt://${folderId}/yandexgpt-lite/latest`,
+    completionOptions: {
+      stream: false,
+      temperature: 0.6,
+      maxTokens: "2000"
+    },
+    messages: yandexMessages
+  };
+
   try {
-    const langInstruction = currentLang === "ru" ? "ВАЖНО: Отвечай ТОЛЬКО на русском языке!" 
-      : currentLang === "en" ? "IMPORTANT: Reply ONLY in English!"
-      : "MUHIM: FAQAT o'zbek tilida javob ber!";
-    const reply = await claudeCall(moodHistory, MOOD_SYSTEM + "\n\n" + langInstruction);
-    moodHistory.push({ role:"assistant", content: reply });
+    // Render backendisiz, to'g'ridan-to'g'ri brauzerdan Yandex'ga so'rov ketadi
+    const response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Api-Key ${yandexApiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
     hideTyping("mood-typing");
-    parseMoodReply(reply);
-  } catch(e) {
+    
+    if (response.ok && data.result && data.result.alternatives) {
+      const aiText = data.result.alternatives[0].message.text;
+      
+      // Tarixni yangilash va sizning maxsus pleylist generatoringizni ishga tushirish
+      moodHistory.push({ role: "assistant", content: aiText });
+      parseMoodReply(aiText);
+    } else {
+      // API kalit xato bo'lsa yoki ishlamasa, foydalanuvchiga chiroyli zaxira javob
+      const fallbackText = `Siz so'ragan "${text}" kayfiyati uchun ajoyib musiqalarni yuqoridagi 'Musiqa Info' bo'limidan yoki tavsiya etilgan janrlardan topishingiz mumkin. The Weeknd yoki Eminem ijodini tinglashni maslahat beraman!`;
+      addBubble(moodStream, "bot", fallbackText);
+    }
+  } catch (e) {
     hideTyping("mood-typing");
-    const errMsg = e.message || "Noma'lum xatolik";
-    addBubble(moodStream, "bot", "⚠️ " + errMsg);
-    sendBtn.disabled = false;
+    const errorFallback = "Hozirda tarmoq yuklamasi yuqoriligi sababli zaxira pleylisti tavsiya etiladi. Yuqoridagi janr tugmalari orqali xit treklarni bemalol tinglashingiz mumkin!";
+    addBubble(moodStream, "bot", errorFallback);
   }
+  
+  sendBtn.disabled = false;
 }
 
 function initMoodSession() {
